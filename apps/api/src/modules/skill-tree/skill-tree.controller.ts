@@ -1,0 +1,54 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  Delete,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SkillTreeService } from './skill-tree.service';
+import { CreateSkillTreeDto } from './dto/create-skill-tree.dto';
+
+@Controller('skill-trees')
+export class SkillTreeController {
+  constructor(private readonly skillTreeService: SkillTreeService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  async create(
+    @Request() req: { user: { userId: string } },
+    @Body() dto: CreateSkillTreeDto,
+  ) {
+    const tree = await this.skillTreeService.create(dto, req.user.userId);
+    return tree;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async findAll(@Request() req: { user: { userId: string } }) {
+    return this.skillTreeService.findByUser(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.skillTreeService.findById(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() dto: Partial<CreateSkillTreeDto>) {
+    return this.skillTreeService.update(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    await this.skillTreeService.remove(id);
+    return { id };
+  }
+}

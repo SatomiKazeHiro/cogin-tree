@@ -1,0 +1,31 @@
+{
+  "name": "@skill/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev --port 3001",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@pinia/nuxt": "^0.5.1",
+    "@skill/shared": "workspace:*",
+    "dayjs": "^1.11.10",
+    "lucide-vue-next": "^0.400.0",
+    "pinia": "^2.1.7"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "^1.3.0",
+    "@tailwindcss/vite": "^4.0.0-alpha",
+    "@types/node": "^20.14.0",
+    "nuxt": "^3.12.0",
+    "tailwindcss": "^4.0.0-alpha",
+    "typescript": "^5.5.0",
+    "vue": "^3.4.0",
+    "vue-router": "^4.4.0"
+  }
+}
