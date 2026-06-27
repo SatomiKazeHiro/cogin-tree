@@ -2,10 +2,10 @@
   <div class="flex min-h-[calc(100vh-112px)] items-center justify-center px-6">
     <AppCard class="w-full max-w-[420px]">
       <div class="mb-8 text-center">
-        <h1 class="mb-2 font-anthropic-serif text-[30px] font-[330] leading-[1.33] text-ink-black">
+        <h1 class="mb-2 font-anthropic-serif text-[30px] font-[330] leading-[1.33] text-ink">
           创建账号
         </h1>
-        <p class="text-[15px] text-stone-gray">
+        <p class="text-[15px] text-muted">
           注册后即可开始构建你的技能树
         </p>
       </div>
@@ -34,16 +34,16 @@
           :error="errors.password"
         />
 
-        <p v-if="submitError" class="text-[14px] text-red-600">{{ submitError }}</p>
+        <p v-if="submitError" class="text-[14px] text-danger">{{ submitError }}</p>
 
         <AppButton type="submit" :loading="loading" class="w-full">
           注册
         </AppButton>
       </form>
 
-      <p class="mt-6 text-center text-[14px] text-stone-gray">
+      <p class="mt-6 text-center text-[14px] text-muted">
         已有账号？
-        <NuxtLink to="/login" class="text-ink-black underline underline-offset-4 hover:text-charcoal">
+        <NuxtLink to="/login" class="text-ink underline underline-offset-4 hover:text-secondary">
           直接登录
         </NuxtLink>
       </p>

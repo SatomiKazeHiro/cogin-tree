@@ -12,6 +12,61 @@ export class MockProvider implements IAIProvider {
       });
     }
 
+    if (
+      prompt.includes('个性化学习路径规划师') ||
+      prompt.includes('推荐方向') ||
+      prompt.includes('recommendations')
+    ) {
+      const interestTags = this.extractTags(prompt, '兴趣标签：') || ['技术提升'];
+      const goalTags = this.extractTags(prompt, '目标标签：') || ['职业发展'];
+      return JSON.stringify({
+        recommendations: [
+          {
+            title: `${interestTags[0]} 实战进阶`,
+            description: `围绕你的${interestTags[0]}兴趣，构建系统化的实战学习路径。`,
+            reason: `基于你的兴趣标签「${interestTags[0]}」和目标「${goalTags[0]}」推荐。`,
+            matchTags: ['兴趣', '目标'],
+            suggestedMode: 'ENTRY',
+          },
+          {
+            title: `${goalTags[0]} 专项突破`,
+            description: `针对${goalTags[0]}目标，梳理核心知识点与常见面试题。`,
+            reason: `与你当前的主要学习目标「${goalTags[0]}」高度匹配。`,
+            matchTags: ['目标'],
+            suggestedMode: 'EXPERT',
+          },
+          {
+            title: '系统架构设计基础',
+            description: '从设计原则到常用模式，建立架构思维。',
+            reason: '适合有基础的同学扩展技术广度。',
+            matchTags: ['兴趣', '学习风格'],
+            suggestedMode: 'ENTRY',
+          },
+          {
+            title: 'AI 应用开发入门',
+            description: '学习如何集成大模型 API，构建智能应用。',
+            reason: '当前热门方向，适合动手实践型学习者。',
+            matchTags: ['兴趣', '学习风格'],
+            suggestedMode: 'ENTRY',
+          },
+          {
+            title: 'DevOps 与持续交付',
+            description: 'CI/CD、容器化与监控，提升交付效率。',
+            reason: '补足工程化能力，提升全栈竞争力。',
+            matchTags: ['目标'],
+            suggestedMode: 'EXPERT',
+          },
+          {
+            title: '技术写作与知识管理',
+            description: '将学习成果沉淀为可复用的知识资产。',
+            reason: '帮助形成长期学习习惯，适合系统掌握目标。',
+            matchTags: ['学习风格'],
+            suggestedMode: 'INTERVIEW',
+          },
+        ],
+      });
+    }
+
     // L3 prompts also mention L1/L2, so check the most specific marker first.
     if (
       prompt.includes('L3') ||
@@ -77,6 +132,12 @@ export class MockProvider implements IAIProvider {
     }
 
     return JSON.stringify({ result: 'mock response' });
+  }
+
+  private extractTags(prompt: string, marker: string): string[] | undefined {
+    const value = this.extractLine(prompt, marker);
+    if (!value || value === '无') return undefined;
+    return value.split('，').filter(Boolean);
   }
 
   private extractLine(prompt: string, marker: string): string | undefined {

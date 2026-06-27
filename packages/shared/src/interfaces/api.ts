@@ -87,15 +87,7 @@ export interface UpdateLearningRecordRequest {
 
 export interface DashboardResponse {
   portrait: PortraitSummary | null;
-  learningRecords: (LearningRecord & { skillTree: SkillTree; progress: number })[];
-  recommendations: {
-    id: string;
-    title: string;
-    description: string;
-    reason: string;
-    matchTags: string[];
-    suggestedMode: string;
-  }[];
+  learningRecords: (LearningRecord & { skillTree: SkillTree | null; progress: number })[];
 }
 
 export interface UpdateAIConfigRequest extends AIProviderConfig {}

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NodeContent } from './entities/node-content.entity';
@@ -47,33 +47,45 @@ export class ContentService {
       where: { id: l2Node.treeId },
     });
 
-    const result = await this.aiService.generateL3(
-      l1Node?.title || '',
-      l2Node.title,
-      tree?.name || '',
-    );
+    try {
+      const result = await this.aiService.generateL3(
+        l1Node?.title || '',
+        l2Node.title,
+        tree?.name || '',
+      );
 
-    const content = this.contentRepo.create({
-      nodeId,
-      coreText: result.coreText,
-      codeExamples: result.codeExamples || [],
-      version: 1,
-    });
-    const saved = await this.contentRepo.save(content);
+      const content = this.contentRepo.create({
+        nodeId,
+        coreText: result.coreText,
+        codeExamples: result.codeExamples || [],
+        version: 1,
+      });
+      const saved = await this.contentRepo.save(content);
 
-    const exercises = result.exercises.map((ex, index) =>
-      this.exerciseRepo.create({
-        nodeContentId: saved.id,
-        question: ex.question,
-        options: ex.options,
-        correctIndex: ex.correctIndex,
-        explanation: ex.explanation,
-        sortOrder: index,
-      }),
-    );
-    await this.exerciseRepo.save(exercises);
+      const exercises = result.exercises.map((ex, index) =>
+        this.exerciseRepo.create({
+          nodeContentId: saved.id,
+          question: ex.question,
+          options: ex.options,
+          correctIndex: ex.correctIndex,
+          explanation: ex.explanation,
+          sortOrder: index,
+        }),
+      );
+      await this.exerciseRepo.save(exercises);
 
-    return this.getContentByNodeId(nodeId) as Promise<NodeContent>;
+      return this.getContentByNodeId(nodeId) as Promise<NodeContent>;
+    } catch (err) {
+      console.error('[ContentService] generateContent failed', err);
+      if (err instanceof BadRequestException || err instanceof NotFoundException) {
+        throw err;
+      }
+      if (err instanceof HttpException) {
+        throw err;
+      }
+      const message = err instanceof Error ? err.message : 'AI 内容生成失败';
+      throw new InternalServerErrorException(`内容生成失败：${message}`);
+    }
   }
 
   async updateContent(

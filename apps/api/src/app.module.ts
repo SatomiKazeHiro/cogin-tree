@@ -13,6 +13,8 @@ import { SkillTreeModule } from './modules/skill-tree/skill-tree.module';
 import { TreeNodeModule } from './modules/tree-node/tree-node.module';
 import { ContentModule } from './modules/content/content.module';
 import { LearningRecordModule } from './modules/learning-record/learning-record.module';
+import { RecommendationModule } from './modules/recommendation/recommendation.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -32,6 +34,8 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     TreeNodeModule,
     ContentModule,
     LearningRecordModule,
+    RecommendationModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 import { TreeType } from '@skill/shared';
 
 export class CreateSkillTreeDto {
@@ -12,4 +12,10 @@ export class CreateSkillTreeDto {
 
   @IsEnum(TreeType)
   type: TreeType;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MinLength(1, { each: true })
+  selectedPoints?: string[];
 }

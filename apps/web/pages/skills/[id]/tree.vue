@@ -1,124 +1,112 @@
 <template>
-  <div v-if="loading" class="py-20 text-center text-stone-gray">
-    加载中…
-  </div>
-
-  <div v-else-if="tree">
-    <div class="mb-6">
-      <NuxtLink to="/dashboard" class="text-[14px] text-stone-gray hover:text-ink-black">← 返回仪表盘</NuxtLink>
-      <h1 class="mt-2 font-anthropic-serif text-[30px] font-[330] leading-[1.33] text-ink-black">
-        {{ tree.name }}
-      </h1>
-      <p v-if="tree.description" class="mt-1 text-stone-gray">{{ tree.description }}</p>
-    </div>
-
-    <TreeSkillTree
-      :nodes="tree.nodes || []"
-      :expanded-l1-id="expandedL1Id"
-      :loading-l1-id="loadingL1Id"
+  <div class="flex h-full w-full overflow-hidden bg-canvas">
+    <!-- Directory panel -->
+    <TreeDirectoryPanel
+      :open="directoryOpen"
+      :root-name="tree?.name ?? ''"
+      :l1-nodes="l1Nodes"
       :children-by-l1="childrenByL1"
-      :selected-l2-id="selectedL2Id"
-      :loading-l2-id="loadingL2Id"
-      :contents="contents"
-      @toggle-l1="handleToggleL1"
-      @toggle-l2="handleToggleL2"
+      :learning-status-by-node-id="learningStatusByNodeId"
+      :selected-node-id="selectedNodeId"
+      @toggle="directoryOpen = !directoryOpen"
+      @select-l1="(id) => onSelectL1(id, vueFlowGraphRef?.fitViewToNode ?? noop)"
+      @select-l2="(id) => onSelectL2(id, vueFlowGraphRef?.fitViewToNode ?? noop)"
     />
+
+    <!-- Canvas -->
+    <div class="relative h-full flex-1 overflow-hidden">
+      <!-- Back button -->
+      <NuxtLink
+        to="/dashboard"
+        class="absolute left-6 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-[9.6px] border border-border bg-surface text-muted shadow-none transition-colors hover:border-strong hover:text-ink"
+      >
+        <ArrowLeft class="h-5 w-5" />
+      </NuxtLink>
+
+      <ClientOnly>
+        <TreeVueFlowGraph
+          ref="vueFlowGraphRef"
+          :nodes="flowNodes"
+          :edges="flowEdges"
+          :highlighted-node-id="selectedNodeId"
+          @action="onNodeAction"
+          @toggle-collapse="toggleCollapse"
+        />
+        <template #fallback>
+          <div class="flex h-full items-center justify-center text-muted">
+            加载图形中…
+          </div>
+        </template>
+      </ClientOnly>
+
+      <!-- Detail drawer -->
+      <Transition
+        enter-active-class="transition-transform duration-300 ease-out"
+        enter-from-class="translate-x-full"
+        enter-to-class="translate-x-0"
+        leave-active-class="transition-transform duration-200 ease-in"
+        leave-from-class="translate-x-0"
+        leave-to-class="translate-x-full"
+      >
+        <div
+          v-if="showPanel"
+          class="absolute right-0 top-0 z-30 h-full w-[50vw] min-w-[560px] max-w-[720px] border-l border-border bg-surface shadow-none"
+        >
+          <TreeL2ContentPanel
+            :title="selectedL2Title"
+            :content="selectedL2Content || { coreText: '' }"
+            :loading="loadingNodeId === selectedL2Id"
+            :node-id="selectedL2Id"
+            :learning-status="selectedL2Id ? learningStatusByNodeId[selectedL2Id] : undefined"
+            @close="selectedL2Id = null"
+            @status-change="handleStatusChange"
+          />
+        </div>
+      </Transition>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ArrowLeft } from 'lucide-vue-next';
+
 definePageMeta({
   middleware: ['auth'],
+  layout: 'fullscreen',
 });
 
-interface TreeNode {
-  id: string;
-  title: string;
-  description?: string;
-  level: number;
-}
-
-interface SkillTree {
-  id: string;
-  name: string;
-  description?: string;
-  nodes: TreeNode[];
-}
-
-interface Content {
-  coreText: string;
-  codeExamples?: {
-    title: string;
-    language: string;
-    code: string;
-  }[];
-  exercises?: {
-    question: string;
-    options: string[];
-    correctIndex: number;
-    explanation: string;
-  }[];
-}
-
 const route = useRoute();
-const { api } = useApi();
+const vueFlowGraphRef = ref<{ fitViewToNode: (nodeId: string) => void }>();
 
-const tree = ref<SkillTree | null>(null);
-const loading = ref(true);
-const expandedL1Id = ref<string | null>(null);
-const loadingL1Id = ref<string | null>(null);
-const childrenByL1 = ref<Record<string, TreeNode[]>>({});
-const selectedL2Id = ref<string | null>(null);
-const loadingL2Id = ref<string | null>(null);
-const contents = ref<Record<string, Content>>({});
+const {
+  tree,
+  flowNodes,
+  flowEdges,
+  directoryOpen,
+  selectedL2Id,
+  loadingNodeId,
+  showPanel,
+  l1Nodes,
+  childrenByL1,
+  learningStatusByNodeId,
+  selectedNodeId,
+  selectedL2Title,
+  selectedL2Content,
+  loadTreeData,
+  onNodeAction,
+  toggleCollapse,
+  onSelectL1,
+  onSelectL2,
+  handleStatusChange,
+} = useSkillTreePage(route.params.id as string);
+
+function noop() {}
 
 onMounted(async () => {
   try {
-    tree.value = await api<SkillTree>(`/skill-trees/${route.params.id}`);
-  } finally {
-    loading.value = false;
+    await loadTreeData();
+  } catch (err) {
+    console.error('[TreePage] load failed', err);
   }
 });
-
-async function handleToggleL1(id: string) {
-  if (expandedL1Id.value === id) {
-    expandedL1Id.value = null;
-    return;
-  }
-
-  expandedL1Id.value = id;
-
-  if (!childrenByL1.value[id]) {
-    loadingL1Id.value = id;
-    try {
-      const children = await api<TreeNode[]>(`/nodes/${id}/expand`, {
-        method: 'POST',
-      });
-      childrenByL1.value = { ...childrenByL1.value, [id]: children };
-    } finally {
-      loadingL1Id.value = null;
-    }
-  }
-}
-
-async function handleToggleL2(id: string) {
-  if (selectedL2Id.value === id) {
-    selectedL2Id.value = null;
-    return;
-  }
-
-  selectedL2Id.value = id;
-
-  if (!contents.value[id]) {
-    loadingL2Id.value = id;
-    try {
-      const content = await api<Content>(`/nodes/${id}/content`, {
-        method: 'POST',
-      });
-      contents.value = { ...contents.value, [id]: content };
-    } finally {
-      loadingL2Id.value = null;
-    }
-  }
-}
 </script>

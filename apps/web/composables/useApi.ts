@@ -15,19 +15,25 @@ export const useApi = () => {
       headers.Authorization = `Bearer ${token.value}`;
     }
 
-    const response = await $fetch<{ code: number; data: T; message?: string } | T>(
-      `${config.public.apiBaseUrl}${path}`,
-      {
-        ...options,
-        headers,
-      },
-    );
+    try {
+      const response = await $fetch<{ code: number; data: T; message?: string } | T>(
+        `${config.public.apiBaseUrl}${path}`,
+        {
+          ...options,
+          headers,
+        },
+      );
 
-    if (response && typeof response === 'object' && 'data' in response) {
-      return response.data as T;
+      if (response && typeof response === 'object' && 'data' in response) {
+        return response.data as T;
+      }
+
+      return response as T;
+    } catch (err) {
+      const fetchError = err as { data?: { message?: string }; message?: string };
+      const message = fetchError.data?.message || fetchError.message || '请求失败';
+      throw new Error(message);
     }
-
-    return response as T;
   }
 
   return { api };

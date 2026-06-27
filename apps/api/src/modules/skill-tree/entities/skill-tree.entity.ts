@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { TreeType } from '@skill/shared';
 import { TreeNode } from './tree-node.entity';
+import { Recommendation } from '../../recommendation/entities/recommendation.entity';
 
 @Entity('skill_trees')
 export class SkillTree {
@@ -37,4 +38,7 @@ export class SkillTree {
 
   @OneToMany(() => TreeNode, (node) => node.tree)
   nodes: TreeNode[];
+
+  @OneToMany(() => Recommendation, (rec) => rec.skillTree)
+  recommendations: Recommendation[];
 }

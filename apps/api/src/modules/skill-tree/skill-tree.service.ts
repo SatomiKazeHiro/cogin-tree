@@ -20,17 +20,27 @@ export class SkillTreeService {
   ) {}
 
   async create(
-    data: { name: string; description?: string; type: TreeType },
+    data: { name: string; description?: string; type: TreeType; selectedPoints?: string[] },
     userId: string,
   ): Promise<SkillTree> {
     const tree = this.treeRepo.create({
-      ...data,
+      name: data.name,
+      description: data.description,
+      type: data.type,
       status: 'ACTIVE',
     });
     const saved = await this.treeRepo.save(tree);
 
     // Generate L1 nodes via AI
-    const l1Result = await this.aiService.generateL1(saved.name, saved.description);
+    const l1Result = data.selectedPoints?.length
+      ? await this.aiService.generateL1FromPoints(
+          saved.name,
+          saved.description,
+          saved.type,
+          data.selectedPoints,
+        )
+      : await this.aiService.generateL1(saved.name, saved.description, saved.type);
+
     const nodes = l1Result.nodes.map((node, index) =>
       this.nodeRepo.create({
         treeId: saved.id,
@@ -52,6 +62,20 @@ export class SkillTreeService {
     await this.recordRepo.save(record);
 
     return this.findById(saved.id);
+  }
+
+  async generateKnowledgePoints(data: {
+    title: string;
+    description?: string;
+    type: TreeType;
+    keywords?: string;
+  }): Promise<{ points: string[] }> {
+    return this.aiService.generateKnowledgePoints({
+      title: data.title,
+      description: data.description,
+      type: data.type,
+      keywords: data.keywords,
+    });
   }
 
   async findById(id: string): Promise<SkillTree> {
@@ -89,6 +113,29 @@ export class SkillTreeService {
   }
 
   async remove(id: string): Promise<void> {
+    // Detach recommendations before deleting the tree to avoid FK violation.
+    await this.treeRepo.manager
+      .createQueryBuilder()
+      .update('recommendations')
+      .set({ skill_tree_id: null })
+      .where('skill_tree_id = :id', { id })
+      .execute();
+
+    const nodes = await this.nodeRepo.find({ where: { treeId: id } });
+    const nodeIds = nodes.map((n) => n.id);
+
+    if (nodeIds.length > 0) {
+      // Exercises cascade from node_contents; delete contents first.
+      await this.nodeRepo.manager
+        .createQueryBuilder()
+        .delete()
+        .from('node_contents')
+        .where('node_id IN (:...nodeIds)', { nodeIds })
+        .execute();
+    }
+
+    await this.nodeRepo.delete({ treeId: id });
+    await this.recordRepo.delete({ skillTreeId: id });
     await this.treeRepo.delete(id);
   }
 }

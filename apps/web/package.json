@@ -14,8 +14,14 @@
   "dependencies": {
     "@pinia/nuxt": "^0.5.1",
     "@skill/shared": "workspace:*",
+    "@types/markdown-it": "^14.1.2",
+    "@vue-flow/background": "^1.3.2",
+    "@vue-flow/controls": "^1.1.3",
+    "@vue-flow/core": "^1.48.2",
     "dayjs": "^1.11.10",
+    "highlight.js": "^11.11.1",
     "lucide-vue-next": "^0.400.0",
+    "markdown-it": "^14.2.0",
     "pinia": "^2.1.7"
   },
   "devDependencies": {

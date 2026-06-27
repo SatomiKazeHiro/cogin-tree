@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-ivory-canvas">
+  <div class="min-h-screen bg-canvas">
     <AppNav />
     <main class="mx-auto max-w-[1200px] px-6 py-8">
       <slot />

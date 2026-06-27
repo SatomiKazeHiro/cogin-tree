@@ -72,6 +72,10 @@ export interface SkillTree {
   updatedAt: Date;
 }
 
+export interface SkillTreeWithNodes extends SkillTree {
+  nodes: TreeNode[];
+}
+
 export interface TreeNode {
   id: string;
   treeId: string;

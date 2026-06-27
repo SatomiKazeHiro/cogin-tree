@@ -15,5 +15,11 @@ export default defineNuxtConfig({
     dirs: ['composables/**'],
   },
   modules: ['@pinia/nuxt'],
+  build: {
+    transpile: ['@skill/shared'],
+  },
+  experimental: {
+    appManifest: false,
+  },
   compatibilityDate: '2024-06-01',
 });

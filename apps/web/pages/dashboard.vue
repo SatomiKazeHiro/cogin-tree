@@ -2,25 +2,49 @@
   <div>
     <DashboardHeader :username="auth.user?.username" />
 
-    <DashboardLearningSection :trees="trees" :loading="loadingTrees" />
+    <DashboardLearningSection
+      :trees="trees"
+      :loading="loadingTrees"
+      @create="openCreateWizard"
+      @delete="deleteTree"
+    />
+
+    <DashboardCurrentLearningSection
+      :items="currentLearning"
+      :loading="loadingCurrentLearning"
+    />
 
     <DashboardRecommendationSection
       v-if="auth.hasPortrait"
       :recommendations="recommendations"
-      :starting-index="startingIndex"
-      @start="createFromRecommendation"
+      :loading="loadingRecommendations"
+      @start="openRecommendationWizard"
     />
 
-    <section v-else class="rounded-[16px] border border-linen-border bg-pure-white p-6">
-      <h2 class="mb-2 font-anthropic-serif text-[24px] font-[330] text-ink-black">
+    <DashboardSkillTreeWizard
+      v-if="wizardState.show"
+      :mode="wizardState.mode"
+      :initial-name="wizardState.initialName"
+      :initial-description="wizardState.initialDescription"
+      :initial-type="wizardState.initialType"
+      :initial-keywords="wizardState.initialKeywords"
+      :recommendation-id="wizardState.recommendationId"
+      @success="handleWizardSuccess"
+      @cancel="closeWizard"
+    />
+
+    <p v-if="submitError" class="mt-4 text-[14px] text-danger">{{ submitError }}</p>
+
+    <section v-if="!auth.hasPortrait" class="rounded-[16px] border border-border bg-surface p-6">
+      <h2 class="mb-2 font-anthropic-serif text-[24px] font-[330] text-ink">
         为你推荐
       </h2>
-      <p class="mb-4 text-stone-gray">
+      <p class="mb-4 text-muted">
         完成肖像问卷后，我们将基于你的兴趣与目标生成个性化推荐。
       </p>
       <NuxtLink
         to="/onboarding"
-        class="inline-flex rounded-[9.6px] bg-charcoal px-4 py-2 text-[14px] text-pure-white hover:opacity-90"
+        class="inline-flex rounded-[9.6px] bg-secondary px-4 py-1.5 text-[14px] text-surface transition-colors hover:bg-ink"
       >
         去设置肖像
       </NuxtLink>
@@ -29,38 +53,56 @@
 </template>
 
 <script setup lang="ts">
+import type { SkillTree, DashboardResponse } from '@skill/shared';
+
 definePageMeta({
   middleware: ['auth'],
 });
 
-interface SkillTree {
-  id: string;
-  name: string;
-  description?: string;
-  type: string;
+interface CurrentLearningItem {
+  skillTreeId: string;
+  skillTree: SkillTree | null;
+  status: string;
+  progress: number;
+  lastNode: { id: string; title: string; status: string; updatedAt: string } | null;
 }
 
 interface Recommendation {
+  id: string;
   title: string;
   description?: string;
+  reason: string;
+  matchTags: string[];
+  suggestedMode: string;
+  keywords?: string[];
 }
 
 const auth = useAuthStore();
 const { api } = useApi();
 const router = useRouter();
+const toast = useToast();
+const { confirm } = useConfirm();
 
 const trees = ref<SkillTree[]>([]);
 const loadingTrees = ref(true);
-const startingIndex = ref<number | null>(null);
+const currentLearning = ref<CurrentLearningItem[]>([]);
+const loadingCurrentLearning = ref(true);
+const recommendations = ref<Recommendation[]>([]);
+const loadingRecommendations = ref(true);
+const submitError = ref('');
 
-const recommendations = ref<Recommendation[]>([
-  { title: '前端工程化', description: '从构建工具到代码规范，系统掌握现代前端工程体系。' },
-  { title: 'Vue 3 全栈开发', description: '结合 Nuxt 3 与后端接口，独立完成全栈应用。' },
-  { title: 'TypeScript 进阶', description: '深入类型系统与设计模式，写出更安全的代码。' },
-  { title: 'AI 应用开发', description: '学习如何集成大模型 API，构建智能应用。' },
-  { title: '微服务架构', description: '理解服务拆分、通信与治理的核心概念。' },
-  { title: 'DevOps 实践', description: 'CI/CD、容器化与监控，提升交付效率。' },
-]);
+const wizardState = ref<{
+  show: boolean;
+  mode: 'create' | 'recommendation';
+  initialName?: string;
+  initialDescription?: string;
+  initialType?: string;
+  initialKeywords?: string;
+  recommendationId?: string;
+}>({
+  show: false,
+  mode: 'create',
+});
 
 onMounted(async () => {
   await auth.fetchUser();
@@ -70,31 +112,83 @@ onMounted(async () => {
     return;
   }
 
-  await loadTrees();
+  // Load dashboard and recommendations independently so slow AI generation
+  // does not block the skill trees section.
+  loadDashboard();
+  loadRecommendations();
 });
 
-async function loadTrees() {
+async function loadDashboard() {
   try {
-    trees.value = await api<SkillTree[]>('/skill-trees');
+    const data = await api<DashboardResponse & { currentLearning: CurrentLearningItem[] }>('/dashboard');
+    trees.value = data.learningRecords
+      .map((r) => r.skillTree)
+      .filter((t): t is SkillTree => !!t);
+    currentLearning.value = data.currentLearning || [];
   } finally {
     loadingTrees.value = false;
+    loadingCurrentLearning.value = false;
   }
 }
 
-async function createFromRecommendation(item: Recommendation, index: number) {
-  startingIndex.value = index;
+async function loadRecommendations() {
   try {
-    const tree = await api<SkillTree>('/skill-trees', {
-      method: 'POST',
-      body: {
-        name: item.title,
-        description: item.description || '',
-        type: 'ENTRY',
-      },
-    });
-    await router.push(`/skills/${tree.id}/tree`);
+    recommendations.value = await api<Recommendation[]>('/recommendations');
   } finally {
-    startingIndex.value = null;
+    loadingRecommendations.value = false;
+  }
+}
+
+function openCreateWizard() {
+  wizardState.value = {
+    show: true,
+    mode: 'create',
+  };
+  submitError.value = '';
+}
+
+function openRecommendationWizard(item: Recommendation) {
+  wizardState.value = {
+    show: true,
+    mode: 'recommendation',
+    initialName: item.title,
+    initialDescription: item.description,
+    initialType: item.suggestedMode || 'ENTRY',
+    initialKeywords: (item.keywords || []).join('，'),
+    recommendationId: item.id,
+  };
+  submitError.value = '';
+}
+
+function closeWizard() {
+  wizardState.value.show = false;
+}
+
+async function handleWizardSuccess(tree: SkillTree) {
+  wizardState.value.show = false;
+  await router.push(`/skills/${tree.id}/tree`);
+}
+
+async function deleteTree(id: string) {
+  const tree = trees.value.find((t) => t.id === id);
+  const confirmed = await confirm({
+    title: '删除技能树',
+    message: `确定要删除「${tree?.name ?? '该技能树'}」吗？\n相关的学习记录和生成的内容都会被清除，此操作不可恢复。`,
+    confirmText: '删除',
+    cancelText: '取消',
+    confirmVariant: 'danger',
+  });
+  if (!confirmed) return;
+
+  submitError.value = '';
+  try {
+    await api(`/skill-trees/${id}`, { method: 'DELETE' });
+    trees.value = trees.value.filter((t) => t.id !== id);
+    toast.success('技能树已删除');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '删除失败';
+    submitError.value = message;
+    toast.error(message);
   }
 }
 </script>

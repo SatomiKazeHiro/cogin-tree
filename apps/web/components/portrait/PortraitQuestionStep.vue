@@ -1,26 +1,26 @@
 <template>
   <div class="space-y-6">
-    <h2 class="font-anthropic-serif text-[24px] font-[330] leading-[1.33] text-ink-black">
+    <h2 class="font-anthropic-serif text-[24px] font-[330] leading-[1.33] text-ink">
       {{ title }}
     </h2>
 
     <div v-for="question in questions" :key="question.id" class="space-y-3">
-      <p class="text-[16px] text-ink-black">{{ question.question }}</p>
+      <p class="text-[16px] text-ink">{{ question.question }}</p>
       <div class="grid gap-3">
         <template v-for="option in question.options" :key="option">
           <label
-            class="flex cursor-pointer items-center gap-3 rounded-[9.6px] border border-linen-border bg-pure-white px-4 py-3 transition-colors hover:bg-warm-parchment"
-            :class="{ 'border-charcoal bg-warm-parchment': isSelected(question.id, option) }"
+            class="flex cursor-pointer items-center gap-3 rounded-[9.6px] border border-border bg-surface px-4 py-3 transition-colors hover:bg-elevated"
+            :class="{ 'border-strong bg-elevated': isSelected(question.id, option) }"
           >
             <input
               :type="question.allowMultiple ? 'checkbox' : 'radio'"
               :name="question.id"
               :value="option"
               :checked="isSelected(question.id, option)"
-              class="h-4 w-4 accent-charcoal"
+              class="h-4 w-4 accent-secondary"
               @change="toggle(question.id, option, question.allowMultiple)"
             />
-            <span class="text-[15px] text-charcoal">{{ option }}</span>
+            <span class="text-[15px] text-secondary">{{ option }}</span>
           </label>
 
           <div
@@ -31,7 +31,7 @@
               v-model="customText[question.id]"
               type="text"
               placeholder="请补充说明"
-              class="w-full rounded-[9.6px] border border-linen-border bg-pure-white px-4 py-2.5 text-[15px] text-ink-black focus:border-charcoal focus:outline-none"
+              class="w-full rounded-[9.6px] border border-border bg-surface px-4 py-2.5 text-[15px] text-ink placeholder:text-placeholder focus:border-strong focus:outline-none"
               @input="updateOtherText(question.id)"
             />
           </div>

@@ -10,17 +10,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center px-6">
-    <div class="max-w-[560px] w-full text-center">
-      <h1 class="text-display leading-display font-anthropic-serif font-[330] mb-6">
+  <div class="flex min-h-screen flex-col items-center justify-center px-6">
+    <div class="w-full max-w-[560px] text-center">
+      <h1 class="mb-6 font-anthropic-serif text-display font-[330] leading-display text-ink">
         技能树学习系统
       </h1>
-      <p class="text-stone-gray mb-10">
+      <p class="mb-10 text-muted">
         AI 驱动的个性化学习路径，从入门到精进的每一步都清晰可见。
       </p>
       <NuxtLink
         to="/login"
-        class="inline-flex items-center justify-center bg-charcoal text-pure-white font-anthropic-sans font-[430] text-[15px] px-5 py-2 rounded-[9.6px] hover:opacity-90 transition-opacity"
+        class="inline-flex items-center justify-center rounded-[9.6px] bg-secondary px-5 py-2 font-anthropic-sans text-[15px] font-[430] text-surface transition-colors hover:bg-ink"
       >
         开始使用
       </NuxtLink>

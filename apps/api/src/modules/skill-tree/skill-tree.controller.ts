@@ -12,10 +12,19 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SkillTreeService } from './skill-tree.service';
 import { CreateSkillTreeDto } from './dto/create-skill-tree.dto';
+import { GenerateKnowledgePointsDto } from './dto/generate-knowledge-points.dto';
 
 @Controller('skill-trees')
 export class SkillTreeController {
   constructor(private readonly skillTreeService: SkillTreeService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Post('knowledge-points')
+  async generateKnowledgePoints(
+    @Body() dto: GenerateKnowledgePointsDto,
+  ) {
+    return this.skillTreeService.generateKnowledgePoints(dto);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post()

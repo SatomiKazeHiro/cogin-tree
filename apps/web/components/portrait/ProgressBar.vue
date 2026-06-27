@@ -1,12 +1,12 @@
 <template>
   <div class="mb-8">
-    <div class="mb-3 flex justify-between text-[13px] font-[500] text-charcoal">
+    <div class="mb-3 flex justify-between text-[13px] font-[500] text-secondary">
       <span>{{ currentLabel }}</span>
       <span>{{ current }} / {{ total }}</span>
     </div>
-    <div class="h-1.5 w-full overflow-hidden rounded-full bg-warm-parchment">
+    <div class="h-1.5 w-full overflow-hidden rounded-full bg-elevated">
       <div
-        class="h-full rounded-full bg-charcoal transition-all duration-300"
+        class="h-full rounded-full bg-secondary transition-all duration-300"
         :style="{ width: `${(current / total) * 100}%` }"
       />
     </div>

@@ -1,6 +1,6 @@
 <template>
   <div class="mx-auto max-w-[720px]">
-    <div v-if="loading" class="py-20 text-center text-stone-gray">
+    <div v-if="loading" class="py-20 text-center text-muted">
       加载中…
     </div>
 

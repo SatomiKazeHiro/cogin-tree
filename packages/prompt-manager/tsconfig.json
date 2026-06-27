@@ -13,7 +13,7 @@
     "resolveJsonModule": true,
     "moduleResolution": "node",
     "paths": {
-      "@skill/shared": ["../shared/dist"]
+      "@skill/shared": ["../shared/dist/types/index.d.ts"]
     }
   },
   "include": ["src/**/*"],
