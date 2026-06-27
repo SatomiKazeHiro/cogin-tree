@@ -10,10 +10,11 @@
 
 - 用户注册/登录（JWT）。
 - 用户肖像问卷：注册后引导用户完成身份/兴趣/目标/背景四类选择题，由 AI 生成肖像摘要。
-- 学习仪表盘：展示"我的学习"与"为你推荐"两个区块。
+- 学习仪表盘：展示"我的技能树"、"正在学习"与"为你推荐"三个区块；"正在学习"展示每个技能树的进度与最近学习节点。
 - 技能树：以 root → L1 → L2 三层节点组织学习方向；L2 作为叶节点，其 L3 学习内容在右侧抽屉展示。
+- 学习状态：每个节点可标记为 `NOT_STARTED` / `IN_PROGRESS` / `COMPLETED` / `SKIPPED`，仪表盘与节点上同步显示。
 - AI 推荐：基于用户肖像与当前学习情况生成最多 10 个学习方向推荐。
-- AI 内容生成：自动生成 L1 大纲、L2 节点、L3 核心文本/代码示例/练习题。
+- AI 内容生成：自动生成 L1 大纲、L2 节点、L3 核心文本/代码示例/练习题；L3 max_tokens 可通过 `.env` 的 `AI_L3_MAX_TOKENS` 配置。
 - 节点时效标记：节点状态包括 `ACTIVE`、`OUTDATED_I`、`OUTDATED_II`、`OUTDATED_III`。
 
 技术栈：
@@ -79,12 +80,15 @@ D:/MGit-Projects/cogni-tree
 | 目录/文件 | 说明 |
 |-----------|------|
 | `pages/` | Nuxt 文件路由：`login`、`register`、`onboarding`、`dashboard`、`skills/create`、`skills/[id]/tree`、`settings` |
-| `layouts/` | `default.vue`（常规页面，max-width 1200px）、`fullscreen.vue`（技能树全屏） |
-| `components/tree/` | 技能树 Vue Flow 相关组件，按 `Tree` 前缀自动注册 |
-| `components/dashboard/` | 仪表盘组件 |
+| `layouts/` | `default.vue`（常规页面，内容区 max-width 1200px）、`fullscreen.vue`（技能树全屏，`h-screen`，导航自动铺满宽度） |
+| `components/tree/` | 技能树 Vue Flow 相关组件，按 `Tree` 前缀自动注册（如 `TreeVueFlowGraph`、`TreeDirectoryPanel`） |
+| `components/dashboard/` | 仪表盘组件（如 `DashboardSkillCard`、`DashboardCurrentLearningSection`、`DashboardRecommendationSection`） |
 | `components/portrait/` | 肖像问卷组件 |
-| `components/App*.vue` | 通用组件：`AppButton`、`AppCard`、`AppInput`、`AppNav`、`AppToast`、`AppConfirmDialog`、`ThemeToggle` |
-| `composables/` | `useApi`、`useAuthStore`、`useTreeLayout`、`useToast`、`useConfirm`、`useTheme` |
+| `components/App*.vue` | 通用组件：`AppButton`、`AppInput`、`AppNav`、`AppToast`、`AppConfirmDialog`、`AppSkeleton` |
+| `components/UserMenu.vue` | 右上角用户菜单（设置/退出） |
+| `components/ThemeToggle.vue` | 主题切换按钮 |
+| `components/DashboardSkeletonCard.vue` | 仪表盘卡片骨架屏 |
+| `composables/` | `useApi`、`useAuthStore`、`useTreeLayout`、`useToast`、`useConfirm`、`useTheme`、`useSkillTreePage` |
 | `middleware/auth.ts` | 未登录用户重定向到 `/login`（`skill-token` cookie） |
 | `assets/css/tailwind.css` | Tailwind v4 主题与设计 token |
 
@@ -120,6 +124,9 @@ AI_PROVIDER=deepseek        # deepseek | openai | mock
 AI_API_KEY=
 AI_MODEL=deepseek-chat
 AI_BASE_URL=https://api.deepseek.com
+
+# AI generation tuning
+AI_L3_MAX_TOKENS=4096
 
 # 端口
 API_PORT=3002
@@ -211,8 +218,8 @@ pnpm dev
 ### 前端 (`apps/web`)
 
 - 入口：`app.vue`
-- 默认布局：`layouts/default.vue`
-- 技能树页面布局：`layouts/fullscreen.vue`
+- 默认布局：`layouts/default.vue`（内容区 max-width 1200px 居中）
+- 技能树页面布局：`layouts/fullscreen.vue`（`h-screen overflow-hidden`，技能树填满视口；`AppNav` 在该布局下自动铺满宽度）
 - Tailwind v4 alpha 通过 `@tailwindcss/vite` 插件集成。
 - API 基础地址来自运行时配置 `runtimeConfig.public.apiBaseUrl`。
 - 自动导入：`composables/**` 目录下的组合式函数会自动导入。
@@ -286,10 +293,16 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 | `--font-anthropic-serif` | Source Serif 4 | 标题 |
 | `--font-anthropic-sans` | Plus Jakarta Sans | 正文/UI |
 
+### 加载状态
+
+- 通用骨架屏：`components/AppSkeleton.vue`，支持 `text` / `card` / `dashboard-cards` / `circle` 等变体。
+- 仪表盘卡片骨架：`components/DashboardSkeletonCard.vue`，模拟真实卡片的标题行 + 描述行 + 底部条结构。
+- 当前在仪表盘「我的技能树」「正在学习」「为你推荐」三个区块的 `loading` 状态统一使用骨架屏。
+
 ### 主题切换
 
 - 状态管理：`composables/useTheme.ts`（Pinia store），支持 `light` / `dark` / `system` 三档。
-- 切换入口：`components/ThemeToggle.vue`，挂载在 `AppNav` 右上角。
+- 切换入口：`components/ThemeToggle.vue`，挂载在 `AppNav` 右上角；当前为纯图标触发器，下拉选择主题。
 - 持久化：`skill-theme` cookie（1 年）。
 - 防闪屏：`app.vue` 在 `<head>` 中内联脚本，在首屏渲染前根据 cookie / 系统偏好设置 `data-theme`。
 
@@ -336,8 +349,10 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 | 前端 API 调用 | `apps/web/composables/useApi.ts` |
 | 前端登录态 | `apps/web/composables/useAuthStore.ts` |
 | 技能树布局计算 | `apps/web/composables/useTreeLayout.ts` |
+| 技能树页面状态与交互 | `apps/web/composables/useSkillTreePage.ts` |
 | 技能树页面 | `apps/web/pages/skills/[id]/tree.vue` |
 | 设计 token / 主题切换 | `apps/web/assets/css/tailwind.css` + `composables/useTheme.ts` + `components/ThemeToggle.vue` |
+| 设计系统文档 | `docs/DESIGN.md` |
 
 ---
 

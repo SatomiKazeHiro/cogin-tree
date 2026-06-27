@@ -1,235 +1,299 @@
-# Claude — Style Reference
-> Warm letterpress on cream paper — a literary workspace where ink-black text rests on ivory stock and color appears only as deliberate annotation.
+# 技能树学习 — Design System
+> A warm, paper-like workspace for AI-powered skill tree learning. Ivory canvas, near-black ink, and a single dusty-blue accent.
 
-**Theme:** light
+**Theme:** light + dark
 
-Claude's design system reads like a letterpress journal on cream paper — a warm ivory canvas (#faf9f5) under near-black ink (#141413), with taupe linen borders that frame content like printed margins. The interface is almost achromatic: color is rationed to a single dusty blue accent, used sparingly for emphasis rather than decoration. Typography carries the brand: a humanist sans (Anthropic Sans) for UI and a literary serif (Anthropic Serif) for headlines, which transforms what could be generic SaaS into something editorial and considered. Components are flat, border-defined, and gently rounded — the system trades drop shadows for hairline warmth, creating a tactile paper-like quality instead of the usual glass-and-elevation vocabulary of tech products.
+The interface reads like a quiet study desk: a warm off-white canvas under near-black text, with hairline borders that frame content like printed margins. Color is rationed to a single dusty-blue accent, used only for emphasis and interactive states. Typography carries the brand: a literary serif for headlines and a humanist sans for UI. Components are flat, border-defined, and gently rounded — the system avoids drop shadows in favor of surface contrast and subtle borders.
+
+## Principles
+
+- **Paper, not glass.** The base canvas feels like cream paper; cards sit on top in pure white or warm parchment.
+- **Ink-first hierarchy.** Near-black text on a warm background provides almost all visual structure.
+- **One accent.** Dust blue is the only chromatic color; everything else is neutral.
+- **Flat & bordered.** No drop shadows; depth comes from borders and background shifts.
+- **Generous whitespace.** Section gaps are large; cards breathe with 20–32px padding.
 
 ## Tokens — Colors
 
-| Name | Value | Token | Role |
-|------|-------|-------|------|
-| Ivory Canvas | `#faf9f5` | `--color-ivory-canvas` | Page background, primary canvas — warm off-white that makes the interface feel like printed paper rather than a screen |
-| Pure White | `#ffffff` | `--color-pure-white` | Card surfaces, input fields, elevated containers sitting atop the ivory canvas |
-| Warm Parchment | `#f0eee6` | `--color-warm-parchment` | Secondary surface for subtle differentiation — toggle backgrounds, hover washes, muted zones |
-| Ink Black | `#141413` | `--color-ink-black` | Primary text, dark filled buttons, high-emphasis UI elements — near-black with a warm cast |
-| Charcoal | `#1f1e1d` | `--color-charcoal` | Secondary text, nav text, body copy — slightly lighter than Ink for hierarchical depth |
-| Warm Slate | `#3d3d3a` | `--color-warm-slate` | Tertiary text, button labels, subdued body content — reads as soft graphite |
-| Stone Gray | `#73726c` | `--color-stone-gray` | Muted helper text, captions, inactive nav items — quiet supporting voice |
-| Pewter | `#9c9a92` | `--color-pewter` | Subtle icons, decorative strokes, low-emphasis inline elements |
-| Linen Border | `#dedcd1` | `--color-linen-border` | Hairline borders, card outlines, dividers — the warm taupe that defines surfaces without harshness |
-| Cool Stone | `#b7b7b5` | `--color-cool-stone` | Supporting neutral for secondary UI, dividers, and muted labels. Do not promote it to the primary CTA color |
-| Dust Blue | `#ccdbe8` | `--color-dust-blue` | Sole chromatic accent — link states, decorative highlights, subtle wash backgrounds, icon tints. The only color in an otherwise monochrome system |
+### Semantic Palette (Light)
+
+| Name | Value | Tailwind Token | Role |
+|------|-------|----------------|------|
+| Canvas | `#faf9f5` | `bg-canvas` | Page background — warm off-white |
+| Surface | `#ffffff` | `bg-surface` | Cards, inputs, elevated containers |
+| Elevated | `#f0eee6` | `bg-elevated` | Hover washes, toggle tracks, muted zones |
+| Interactive | `#f5f4ef` | `bg-interactive` | Subtle interactive backgrounds |
+| Overlay | `rgba(20,20,19,0.4)` | `bg-overlay` | Modal backdrops |
+| Ink | `#141413` | `text-ink` | Primary text, active outlines |
+| Secondary | `#3d3d3a` | `text-secondary` | Secondary text, labels |
+| Muted | `#73726c` | `text-muted` | Helper text, inactive nav items |
+| Placeholder | `#9c9a92` | `text-placeholder` | Input placeholders |
+| Border | `#dedcd1` | `border-border` | Hairline borders, card edges |
+| Border Strong | `#cdcbc1` | `border-border-strong` | Hover borders, dividers |
+| Accent | `#ccdbe8` | `bg-accent` | Sole chromatic accent — badges, status, highlights |
+| Accent Text | `#1f1e1d` | `text-accent-text` | Text on accent backgrounds |
+| Danger | `#c9372d` | `text-danger` | Errors, destructive actions |
+| Success | `#2d6a4f` | `text-success` | Completed / success states |
+| Code Background | `#f0eee6` | `bg-code-bg` | Inline / block code backgrounds |
+
+### Semantic Palette (Dark)
+
+| Name | Value | Tailwind Token | Role |
+|------|-------|----------------|------|
+| Canvas | `#131311` | `bg-canvas` | Dark page background |
+| Surface | `#1c1c19` | `bg-surface` | Dark cards and inputs |
+| Elevated | `#252522` | `bg-elevated` | Dark hover / muted surfaces |
+| Interactive | `#2a2a26` | `bg-interactive` | Dark interactive backgrounds |
+| Overlay | `rgba(10,10,9,0.65)` | `bg-overlay` | Dark modal backdrops |
+| Ink | `#f5f4ef` | `text-ink` | Dark-mode primary text |
+| Secondary | `#d8d7d0` | `text-secondary` | Dark-mode secondary text |
+| Muted | `#a3a29b` | `text-muted` | Dark-mode helper text |
+| Placeholder | `#73726c` | `text-placeholder` | Dark-mode placeholders |
+| Border | `#363632` | `border-border` | Dark hairline borders |
+| Border Strong | `#4a4a44` | `border-border-strong` | Dark hover borders |
+| Accent | `#4a6fa5` | `bg-accent` | Dark accent (deeper slate blue) |
+| Accent Text | `#e8f0f8` | `text-accent-text` | Text on dark accent |
+| Danger | `#ef4444` | `text-danger` | Dark-mode errors |
+| Success | `#4ade80` | `text-success` | Dark-mode success |
+| Code Background | `#1f1f1c` | `bg-code-bg` | Dark code backgrounds |
+
+### Legacy Aliases
+
+For historical compatibility, the old Claude-style aliases are still mapped to the semantic tokens:
+
+- `--color-ivory-canvas` → `--bg-canvas`
+- `--color-pure-white` → `--bg-surface`
+- `--color-warm-parchment` → `--bg-elevated`
+- `--color-ink-black` → `--text-primary`
+- `--color-charcoal` → `--text-secondary`
+- `--color-warm-slate` → `#3d3d3a`
+- `--color-stone-gray` → `--text-muted`
+- `--color-pewter` → `--text-placeholder`
+- `--color-linen-border` → `--border-default`
+- `--color-cool-stone` → `#b7b7b5`
+- `--color-dust-blue` → `--accent`
 
 ## Tokens — Typography
 
-### Anthropic Serif — Editorial display and heading type. Used for hero headlines (56px weight 330), section headings (30px), plan tier names, and price figures. The low weight 330 for large display sizes is anti-convention — most tech brands use 700+ for hero text, but this whisper-weight serif creates authority through literary restraint rather than visual volume. Liga features enabled for refined ligatures. · `--font-anthropic-serif`
-- **Substitute:** Source Serif 4, Tiempos Text, or PT Serif
-- **Weights:** 330, 400
-- **Sizes:** 18px, 24px, 30px, 56px
-- **Line height:** 1.20, 1.33, 1.56
-- **OpenType features:** `"liga"`
-- **Role:** Editorial display and heading type. Used for hero headlines (56px weight 330), section headings (30px), plan tier names, and price figures. The low weight 330 for large display sizes is anti-convention — most tech brands use 700+ for hero text, but this whisper-weight serif creates authority through literary restraint rather than visual volume. Liga features enabled for refined ligatures.
+### Font Families
 
-### Anthropic Sans — Interface and body type. Weight 430 (between regular and medium) is the workhorse for body text and buttons — 400 for body, 430 for buttons and emphasis, 500 for subheadings, 600 for strong UI labels. Size 24px sans serves as a mid-scale heading or prominent label. The 430 weight is distinctive — it provides more presence than 400 without jumping to the heaviness of 500, giving the UI a slightly warmer, less clinical feel than standard system fonts. · `--font-anthropic-sans`
-- **Substitute:** Inter, IBM Plex Sans, or Söhne
-- **Weights:** 400, 430, 500, 600
-- **Sizes:** 11px, 12px, 14px, 15px, 16px, 24px
-- **Line height:** 1.33, 1.40, 1.43, 1.50, 1.63
-- **Letter spacing:** normal
-- **OpenType features:** `"liga"`
-- **Role:** Interface and body type. Weight 430 (between regular and medium) is the workhorse for body text and buttons — 400 for body, 430 for buttons and emphasis, 500 for subheadings, 600 for strong UI labels. Size 24px sans serves as a mid-scale heading or prominent label. The 430 weight is distinctive — it provides more presence than 400 without jumping to the heaviness of 500, giving the UI a slightly warmer, less clinical feel than standard system fonts.
+| Token | Font | Role |
+|-------|------|------|
+| `--font-anthropic-serif` | Source Serif 4 | Headlines, page titles, card titles |
+| `--font-anthropic-sans` | Plus Jakarta Sans | UI text, body, buttons, labels |
+| `--font-mono` | JetBrains Mono | Code examples, inline code |
 
 ### Type Scale
 
-| Role | Size | Line Height | Letter Spacing | Token |
-|------|------|-------------|----------------|-------|
-| caption | 11px | 1.5 | — | `--text-caption` |
-| body | 15px | 1.63 | — | `--text-body` |
-| subheading | 18px | 1.56 | — | `--text-subheading` |
-| heading-sm | 24px | 1.33 | — | `--text-heading-sm` |
-| heading | 30px | 1.33 | — | `--text-heading` |
-| display | 56px | 1.2 | — | `--text-display` |
+| Role | Size | Line Height | Token |
+|------|------|-------------|-------|
+| caption | 11px | 1.5 | `--text-caption` |
+| body | 15px | 1.63 | `--text-body` |
+| subheading | 18px | 1.56 | `--text-subheading` |
+| heading-sm | 24px | 1.33 | `--text-heading-sm` |
+| heading | 30px | 1.33 | `--text-heading` |
+| display | 56px | 1.2 | `--text-display` |
+
+### Weights
+
+- **330** — Large serif display (page title, hero).
+- **400** — Body and card descriptions.
+- **430** — Button labels and emphasized UI text.
+- **500** — Labels, tab text, small headings.
+- **600** — Badges, uppercase labels.
 
 ## Tokens — Spacing & Shapes
 
 **Base unit:** 8px
 
-**Density:** comfortable
-
 ### Spacing Scale
 
-| Name | Value | Token |
-|------|-------|-------|
-| 8 | 8px | `--spacing-8` |
-| 16 | 16px | `--spacing-16` |
-| 24 | 24px | `--spacing-24` |
-| 32 | 32px | `--spacing-32` |
-| 40 | 40px | `--spacing-40` |
-| 48 | 48px | `--spacing-48` |
-| 64 | 64px | `--spacing-64` |
-| 80 | 80px | `--spacing-80` |
-| 96 | 96px | `--spacing-96` |
+| Token | Value |
+|-------|-------|
+| `--spacing-8` | 8px |
+| `--spacing-16` | 16px |
+| `--spacing-24` | 24px |
+| `--spacing-32` | 32px |
+| `--spacing-40` | 40px |
+| `--spacing-48` | 48px |
+| `--spacing-64` | 64px |
+| `--spacing-80` | 80px |
+| `--spacing-96` | 96px |
 
 ### Border Radius
 
-| Element | Value |
-|---------|-------|
-| nav | 9.6px |
-| cards | 16px |
-| inputs | 9.6px |
-| buttons | 9.6px |
-| containers | 24px |
-| hero-panels | 32px |
+| Element | Value | Token |
+|---------|-------|-------|
+| buttons, inputs, nav items, small toggles | 9.6px | `--radius-lg` |
+| cards, modals, dialogs | 16px | `--radius-2xl` |
+| large containers | 24px | `--radius-3xl` |
+| hero panels | 32px | `--radius-3xl-2` |
+| fully rounded (avatars, status dots) | 9999px | `rounded-full` |
 
-### Layout
+## Layout
 
-- **Page max-width:** 1200px
-- **Section gap:** 64px
-- **Card padding:** 32px
-- **Element gap:** 8px
+- **Default page max-width:** 1200px, centered with `mx-auto` and `px-6`.
+- **Fullscreen layout:** `h-screen` with `overflow-hidden`; the single-page skill tree fills the entire viewport and the nav stretches full-width.
+- **Section gap:** 40px (`mb-10`).
+- **Card grid:** 3 columns on large screens, 2 on small screens, gap 16px.
 
 ## Components
 
-### Primary Dark Button
-**Role:** High-emphasis call-to-action for account creation, trial activation, and form submission
+### AppButton
 
-Filled with Charcoal (#1f1e1d), white (#ffffff) text in Anthropic Sans weight 430 at 15px. 9.6px border-radius. 20px horizontal padding, 8px vertical. No shadow, no border — the dark fill against the ivory canvas is the only visual weight needed. Examples: "Try Claude" in nav, "Continue with email" in auth form.
+Primary interactive button. Radius 9.6px, font-weight 500.
 
-### Ghost Outlined Button
-**Role:** Secondary action that needs visibility without competing with the primary CTA
+| Variant | Style |
+|---------|-------|
+| `primary` | `bg-secondary text-surface hover:bg-ink` — filled dark CTA |
+| `secondary` | `bg-surface text-ink border-border hover:border-strong hover:bg-elevated` |
+| `soft` | `bg-canvas text-secondary border-border hover:border-strong hover:text-ink hover:bg-elevated` |
+| `ghost` | `bg-transparent text-muted hover:text-ink hover:bg-elevated` |
+| `danger` | `bg-danger text-surface hover:opacity-90` |
 
-Transparent fill, Charcoal (#1f1e1d) text in Anthropic Sans weight 430 at 15px. 9.6px border-radius. 20px horizontal padding, 8px vertical. Hairline border in Cool Stone (#b7b7b5) or Linen (#dedcd1). Example: "Contact sales" in nav bar.
+Sizes:
+- `sm` — `px-4 py-1.5 text-[14px]`
+- `md` — `px-5 py-2 text-[15px]`
+- `lg` — `px-6 py-3 text-[16px]`
 
-### Download Button
-**Role:** Platform-specific action with leading icon
+### AppInput
 
-Ghost button variant with a platform icon (Apple logo, etc.) preceding the label. Charcoal text, Linen border, 9.6px radius. Subdued visual weight to avoid competing with primary CTAs. Example: "Download desktop app" with Apple icon.
+- `bg-surface` fill, `border-border` 1px border, 9.6px radius.
+- `px-4 py-2.5` padding, 15px `text-ink`.
+- Placeholder in `text-placeholder`.
+- Focus: `border-strong`, no ring or shadow.
+- Label: 13px, weight 500, `text-secondary`.
+- Error message: 13px `text-danger`.
 
-### Social Auth Button
-**Role:** Third-party authentication entry point
+### AppSkeleton
 
-White (#ffffff) fill, Charcoal text in Anthropic Sans weight 430 at 15px. 9.6px border-radius, Linen border. Provider icon (Google "G" in brand color) left-aligned with consistent 12px gap. Full-width within form container. No fill on hover — border darkens to Charcoal.
+Loading placeholders using `animate-pulse` and `bg-elevated`.
 
-### Email Input Field
-**Role:** Primary text input for email capture and form fields
+| Variant | Usage |
+|---------|-------|
+| `text` | Stacked lines for paragraph placeholders |
+| `card` | Single rounded rectangle |
+| `dashboard-cards` | 3-column grid of realistic card skeletons |
+| `circle` | Avatar / icon placeholders |
 
-White (#ffffff) fill, Linen (#dedcd1) 1px border. 9.6px border-radius. 16px horizontal padding, 12px vertical. Placeholder text in Stone Gray (#73726c). Focus state: border darkens to Charcoal (#1f1e1d) with no ring or shadow — the border transition is the focus indicator.
+Dashboard skeleton cards use `h-36`, `border border-border bg-surface p-5`, and contain header/body/footer bars to mimic real cards.
 
-### Plan Pricing Card
-**Role:** Pricing tier display for subscription plans
+### AppNav
 
-White (#ffffff) surface on Ivory Canvas background. Linen (#dedcd1) 1px border, 16px border-radius. 32px internal padding. Contains: decorative line-art icon at top, plan name in Anthropic Serif weight 400 at 24px, tagline in Anthropic Sans body-sm, price in Anthropic Serif weight 400 at 30px, full-width Primary Dark Button, and feature checklist below a hairline divider. No shadow — the border defines the card edge.
+- Sticky top, `h-14`, `border-b border-border`, `bg-canvas/90 backdrop-blur`.
+- Left: brand title in serif 18px weight 330.
+- Right (authenticated): 仪表盘 link, 设置 link, ThemeToggle icon, UserMenu.
+- Right (guest): 登录 link, 注册 primary button, ThemeToggle.
+- Default inner container max-width 1200px; on fullscreen routes it stretches full-width.
 
-### Segmented Toggle
-**Role:** Tab-style switch between plan categories or view modes
+### UserMenu
 
-Anthropic Sans weight 500 at 14px. Two states: selected tab has white (#ffffff) fill with Linen border and Charcoal text on Warm Parchment (#f0eee6) track; unselected tab is text-only in Stone Gray. 9.6px radius on the track container and individual selected pill. 4px internal padding. Example: "Individual" / "Team and Enterprise" toggle above pricing grid.
+- Trigger: ghost button with User icon, username, and chevron.
+- Dropdown: rounded 12px, `bg-surface border-border`, user info divider, settings link, logout button.
+- Logout item uses `hover:bg-danger-bg hover:text-danger`.
 
-### Feature Checklist Item
-**Role:** Bulleted benefit list within plan cards and feature sections
+### ThemeToggle
 
-Checkmark icon in Charcoal (#1f1e1d) at 16px, followed by Anthropic Sans weight 400 at 15px in Charcoal text. 12px vertical gap between items. The checkmark is a simple stroke — not a filled circle or decorative graphic.
+- Icon-only ghost trigger (sun / moon / monitor) with tooltip showing current mode.
+- Dropdown offers 白天 / 黑夜 / 系统 options.
 
-### Navigation Bar
-**Role:** Primary site navigation and brand identity
+### AppToast
 
-Transparent or Ivory Canvas background, no shadow or bottom border. Left: Claude logo (asterisk/sparkle glyph + wordmark). Center: nav links in Anthropic Sans weight 430 at 14px in Charcoal. Right: Ghost Button ("Contact sales") + Primary Dark Button ("Try Claude"). 16px gap between nav items. Logo wordmark in Charcoal.
+- Fixed top-center, max-width-md.
+- Rounded 9.6px, border, no shadow.
+- Types:
+  - `success`: `border-success/30 bg-success-bg text-success`
+  - `error`: `border-danger/30 bg-danger-bg text-danger`
+  - `info`: `border-accent/30 bg-accent/10 text-accent-text`
 
-### Logo Mark
-**Role:** Brand identity — the Claude sparkle/asterisk icon and wordmark
+### AppConfirmDialog
 
-Asterisk-like glyph in a warm orange/amber tone (subtle chromatic break from the monochrome system — this is the brand's signature mark, appearing only in the logo and favicon context). Wordmark "Claude" in Anthropic Serif weight 400. Logo sits at ~28px height in nav.
+- Centered modal over `bg-overlay`.
+- `max-w-[400px]`, 16px radius, `bg-surface border-border p-6`.
+- Title in serif 18px; message in 14px muted; Cancel + Confirm buttons.
 
-### Auth Form Card
-**Role:** Login/signup container with stacked authentication options
+### DashboardHeader
 
-White (#ffffff) surface, 16px border-radius, Linen border. 32px padding. Contains: Social Auth Button → "or" divider → Email Input + Primary Dark Button stacked vertically. Fine print below in Stone Gray at 12px. Subtle elevation through background contrast only — no shadow.
+- Page title: serif 30px weight 330 `text-ink`.
+- Subtitle: 15px `text-muted`.
 
-### Interactive Demo Panel
-**Role:** Product showcase panel displaying Chat/Cowork toggle on a simulated workspace
+### DashboardSkillCard
 
-Large rounded container (32px radius) on Ivory Canvas. White inner surface with Linen border. Contains a pill-shaped segmented control: "Chat" (active, white fill with subtle shadow or border) and "Cowork" (inactive, transparent). Cursor arrow as a decorative element suggesting interactivity. This panel is the visual counterweight to the auth form on the hero.
+- `rounded-[16px] border border-border bg-surface p-5`.
+- Hover: `hover:border-strong hover:bg-elevated`.
+- Title in serif 18px; type badge (ENTRY/EXPERT/INTERVIEW); description line-clamp-2.
+- Delete button appears on group-hover.
 
-### Decorative Plan Icon
-**Role:** Line-art illustration above each pricing tier name
+### CurrentLearningCard
 
-Simple stroke illustration (tree, branching structure, tree-with-fruit) in Charcoal (#1f1e1d) stroke at ~40px height. Drawn at a consistent stroke weight, centered above the plan name. The organic line-art style softens the data-dense pricing card.
+- Same card shell as skill card.
+- Header: title + status badge (未开始 / 学习中 / 已完成 / 跳过).
+- Description + optional "最近学习" line.
+- Bottom: progress bar (`h-2 rounded-full bg-elevated`) with accent fill and percentage.
+
+### RecommendationCard
+
+- Same 16px bordered card shell.
+- Title, description, reason, match tags, keyword tags.
+- CTA: `AppButton variant="secondary" size="sm"`.
+
+### Tree FlowNode
+
+- Fixed size: `h-[190px] w-[340px]`, `rounded-[16px]`, `bg-surface border`.
+- Left vertical stripe by level:
+  - root: ink
+  - L1: secondary
+  - L2: accent
+- Top badge: `L1` / `L2`, small rounded pill.
+- Title: serif 18px; description: 14px muted line-clamp-2.
+- Bottom-right action button: 初始化 / 分析 / 详情.
+- Right-middle collapse toggle: circular `+/-` button, half-outside the node card.
+- Selected / highlighted state: dashed ink outline with 3px offset.
+- Status dot for learning progress (accent / success / muted).
+
+### Tree DirectoryPanel
+
+- Left collapsible sidebar, `w-[280px]` open, `w-[44px]` collapsed.
+- `bg-surface border-r border-border`.
+- Tree of L1 / L2 nodes; selected item gets `bg-accent/10 text-ink`.
+
+### L2ContentPanel (Drawer)
+
+- Right-side drawer, `w-[50vw] min-w-[560px] max-w-[720px]`, `bg-surface`.
+- Header: level badge + serif 26px title + close button.
+- Tabs: 概念 / 代码演示 / 练习题, underline active indicator.
+- Main content scrollable.
+- Footer: learning-status buttons (未开始 / 学习中 / 已完成 / 跳过).
+
+## Learning Status Colors
+
+| Status | Dot | Badge | Button |
+|--------|-----|-------|--------|
+| 未开始 | transparent | `bg-elevated text-secondary` | `bg-ink text-surface` |
+| 学习中 | `bg-accent` | `bg-accent/10 text-accent-text` | `bg-accent text-accent-text` |
+| 已完成 | `bg-success` | `bg-success/10 text-success` | `bg-success text-surface` |
+| 跳过 | `bg-muted` | `bg-muted/10 text-muted` | `bg-muted text-surface` |
+
+## Dark Mode
+
+Dark mode is driven by `data-theme="dark"` on `<html>` and CSS variable overrides. The `useTheme` composable persists the choice (`light` / `dark` / `system`) in a cookie and applies the attribute on both client and server. All components use the semantic Tailwind tokens, so they automatically adapt.
 
 ## Do's and Don'ts
 
 ### Do
-- Use Anthropic Serif weight 330 at 56px for hero display headlines — the whisper-weight serif is the brand's signature editorial voice
-- Maintain the Ivory Canvas (#faf9f5) as the base background for all pages; never substitute pure white (#ffffff) at the page level
-- Use 9.6px border-radius for all interactive elements (buttons, inputs, toggles, nav elements) — this is the system's defining corner treatment
-- Use Linen (#dedcd1) 1px borders for card and container edges instead of drop shadows
-- Use Charcoal (#1f1e1d) fill with white text for primary action buttons — the only acceptable filled-button treatment
-- Use Anthropic Sans weight 430 for button labels and nav links — this slightly-bold weight is warmer than standard 400
-- Apply 32px padding inside plan cards and major content containers, 16-20px inside buttons and inputs
-- Keep the palette nearly monochrome; use Dust Blue (#ccdbe8) only for link states and subtle accent washes, never for filled buttons
+- Use the semantic tokens (`bg-canvas`, `text-ink`, `border-border`) instead of hard-coded hex values.
+- Use `font-anthropic-serif` for page and card titles; `font-anthropic-sans` for body and UI.
+- Use 9.6px radius for interactive elements and 16px for cards.
+- Use `border-border` 1px borders for cards and containers.
+- Keep the palette nearly monochrome; use `bg-accent` only for emphasis, badges, and learning status.
+- Respect `prefers-reduced-motion` when adding animations.
 
 ### Don't
-- Do not use drop shadows or box-shadow on cards, buttons, or containers — this system is flat and border-defined
-- Do not use pure black (#000000) for body text — Ink (#141413) is the correct near-black with warm cast
-- Do not use rounded pill shapes (border-radius: 9999px) for buttons — 9.6px is the maximum
-- Do not use bold (700+) or heavy weights for headings — the system relies on 330-400 weights for authority
-- Do not introduce additional chromatic colors — Dust Blue is the sole accent in an achromatic system
-- Do not use the Cool Stone border (#b7b7b5) for content cards — reserve it only for nav-level interactive elements
-- Do not use sans-serif type for section headings or display text — Anthropic Serif is mandatory for all heading-level content
-- Do not add gradients, glows, or color transitions to surfaces — warmth comes from the cream canvas, not visual effects
-
-## Surfaces
-
-| Level | Name | Value | Purpose |
-|-------|------|-------|---------|
-| 0 | Ivory Canvas | `#faf9f5` | Base page background — the warm off-white that defines the entire visual atmosphere |
-| 1 | Pure White | `#ffffff` | Card surfaces, input fields, form containers — elements that need to lift off the canvas |
-| 2 | Warm Parchment | `#f0eee6` | Tertiary surfaces for toggle tracks, subtle hover zones, and areas needing quiet differentiation from the base canvas |
-| 3 | Charcoal Block | `#1f1e1d` | Inverted surface for primary buttons and interactive dark elements — the only non-white opaque surface in the light system |
-
-## Elevation
-
-This system deliberately avoids drop shadows. Depth and separation are achieved through three techniques instead: (1) hairline Linen borders (#dedcd1) that define edges with the subtlety of a printed rule line, (2) background contrast shifts between Ivory Canvas, Pure White, and Warm Parchment, and (3) the dark-to-light inversion of Primary Dark Buttons. This flat-but-bordered approach is a defining signature — it rejects the glassmorphism/neumorphism conventions of mainstream tech UI and instead references editorial print design, where pages have structure through typography and rules rather than depth illusions.
-
-## Imagery
-
-Minimal photographic imagery. The visual language is dominated by typography and line-art illustration rather than photography. The decorative plan icons (trees, branching structures) are hand-drawn-feeling line art at consistent stroke weight in Charcoal. The interactive demo panel uses a simulated product interface as the visual hero rather than a marketing photograph. The brand's asterisk/sparkle logo mark provides the only chromatic warmth in the identity. Overall: text-dominant with sparse, deliberate illustration accents — the interface is the product, not a photograph of it.
-
-## Layout
-
-Full-width pages with centered max-width content containers (~1200px). The hero follows a two-column split: left column holds the serif headline and auth form card, right column holds the interactive product demo panel. Both columns occupy roughly equal visual weight. Navigation is a clean top bar with logo left, links center, CTAs right. Section rhythm uses generous vertical spacing (64px section gaps) with alternating background bands — Ivory Canvas as the default, with cards in Pure White creating subtle section breaks. Content is left-aligned for body text and centered for hero headlines. The pricing section shifts to a three-column card grid with consistent card widths. No dark sections — the entire page stays in the light/warm spectrum with only the Primary Dark Buttons providing contrast.
-
-## Agent Prompt Guide
-
-**Quick Color Reference**
-- Page background: #faf9f5 (Ivory Canvas)
-- Card surface: #ffffff (Pure White)
-- Primary text: #141413 (Ink Black)
-- Secondary text: #1f1e1d (Charcoal)
-- Borders: #dedcd1 (Linen)
-- Accent: #ccdbe8 (Dust Blue)
-- primary action: no distinct CTA color
-
-**Example Component Prompts**
-
-No distinct primary action color was observed; use the extracted neutral button treatments instead of inventing a filled CTA color.
-
-
-
-4. Build a form input: White (#ffffff) fill, #dedcd1 1px border, 9.6px radius, 16px×12px padding. Placeholder text in #73726c at 15px Anthropic Sans weight 400. On focus: border transitions to #1f1e1d with no ring or shadow.
-
-5. Create a segmented toggle: Warm Parchment (#f0eee6) track, 9.6px radius, 4px padding. Active segment: white fill with #dedcd1 border, #141413 text at 14px Anthropic Sans weight 500. Inactive segment: transparent, #73726c text.
-
-## Typographic System
-
-The dual-font approach is a core brand signature: Anthropic Serif for all editorial content (headlines, plan names, prices, hero text) and Anthropic Sans for all functional UI (buttons, nav, body, labels, inputs). Never mix within a single text block. The serif-to-sans transition happens at the content/interface boundary — a card title is serif, its button label is sans. The weight 330 used for 56px display sizes is deliberately light; this is not a brand that shouts with its type. Letter-spacing stays at normal across all sizes — no tracked-out caps, no tight display tracking. The "liga" feature setting is enabled for both fonts to ensure refined ligatures in all contexts.
-
-## Similar Brands
-
-- **Linear** — Same editorial restraint with serif-influenced display type, hairline borders instead of shadows, and a warm minimal palette that rejects generic SaaS conventions
-- **Notion** — Similar warm-toned minimal interface with clean typography hierarchy and flat border-defined components rather than heavy elevation
-- **Stripe** — Shared approach of using refined typography (Stripe uses its own custom serif/sans pairing) and generous whitespace with a nearly monochromatic palette punctuated by a single accent
-- **Arc Browser** — Both systems use warm cream/off-white canvases with near-black text, creating a paper-like editorial feel rather than the typical stark-white tech aesthetic
+- Do not use drop shadows on cards or buttons — the system is flat and border-defined.
+- Do not introduce new chromatic colors beyond the dusty-blue accent.
+- Do not use bold (700+) weights for headings; 330–500 is the range.
+- Do not use pure black (`#000000`) for text; `text-ink` is the correct near-black.
+- Do not hard-code light-mode colors; always use semantic tokens so dark mode works.
 
 ## Quick Start
 
@@ -237,106 +301,116 @@ The dual-font approach is a core brand signature: Anthropic Serif for all editor
 
 ```css
 :root {
-  /* Colors */
-  --color-ivory-canvas: #faf9f5;
-  --color-pure-white: #ffffff;
-  --color-warm-parchment: #f0eee6;
-  --color-ink-black: #141413;
-  --color-charcoal: #1f1e1d;
-  --color-warm-slate: #3d3d3a;
-  --color-stone-gray: #73726c;
-  --color-pewter: #9c9a92;
-  --color-linen-border: #dedcd1;
-  --color-cool-stone: #b7b7b5;
-  --color-dust-blue: #ccdbe8;
+  /* Backgrounds */
+  --bg-canvas: #faf9f5;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f0eee6;
+  --bg-interactive: #f5f4ef;
+  --bg-overlay: rgba(20, 20, 19, 0.4);
 
-  /* Typography — Font Families */
-  --font-anthropic-serif: 'Anthropic Serif', ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-anthropic-sans: 'Anthropic Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Text */
+  --text-primary: #141413;
+  --text-secondary: #3d3d3a;
+  --text-muted: #73726c;
+  --text-placeholder: #9c9a92;
 
-  /* Typography — Scale */
-  --text-caption: 11px;
-  --leading-caption: 1.5;
-  --text-body: 15px;
-  --leading-body: 1.63;
-  --text-subheading: 18px;
-  --leading-subheading: 1.56;
-  --text-heading-sm: 24px;
-  --leading-heading-sm: 1.33;
-  --text-heading: 30px;
-  --leading-heading: 1.33;
-  --text-display: 56px;
-  --leading-display: 1.2;
+  /* Borders */
+  --border-default: #dedcd1;
+  --border-strong: #cdcbc1;
+  --border-subtle: rgba(222, 220, 209, 0.6);
 
-  /* Typography — Weights */
-  --font-weight-w330: 330;
-  --font-weight-regular: 400;
-  --font-weight-w430: 430;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
+  /* Accent */
+  --accent: #ccdbe8;
+  --accent-hover: #b9cce0;
+  --accent-text: #1f1e1d;
+  --accent-subtle: rgba(204, 219, 232, 0.5);
 
-  /* Spacing */
-  --spacing-unit: 8px;
-  --spacing-8: 8px;
-  --spacing-16: 16px;
-  --spacing-24: 24px;
-  --spacing-32: 32px;
-  --spacing-40: 40px;
-  --spacing-48: 48px;
-  --spacing-64: 64px;
-  --spacing-80: 80px;
-  --spacing-96: 96px;
+  /* Feedback */
+  --danger: #c9372d;
+  --danger-bg: #fef2f2;
+  --success: #2d6a4f;
+  --success-bg: #f0fdf4;
 
-  /* Layout */
-  --page-max-width: 1200px;
-  --section-gap: 64px;
-  --card-padding: 32px;
-  --element-gap: 8px;
+  /* Code */
+  --code-bg: #f0eee6;
+  --code-text: #1f1e1d;
+}
 
-  /* Border Radius */
-  --radius-lg: 9.6px;
-  --radius-2xl: 16px;
-  --radius-3xl: 24px;
-  --radius-3xl-2: 32px;
+[data-theme="dark"] {
+  --bg-canvas: #131311;
+  --bg-surface: #1c1c19;
+  --bg-elevated: #252522;
+  --bg-interactive: #2a2a26;
+  --bg-overlay: rgba(10, 10, 9, 0.65);
 
-  /* Named Radii */
-  --radius-nav: 9.6px;
-  --radius-cards: 16px;
-  --radius-inputs: 9.6px;
-  --radius-buttons: 9.6px;
-  --radius-containers: 24px;
-  --radius-hero-panels: 32px;
+  --text-primary: #f5f4ef;
+  --text-secondary: #d8d7d0;
+  --text-muted: #a3a29b;
+  --text-placeholder: #73726c;
 
-  /* Surfaces */
-  --surface-ivory-canvas: #faf9f5;
-  --surface-pure-white: #ffffff;
-  --surface-warm-parchment: #f0eee6;
-  --surface-charcoal-block: #1f1e1d;
+  --border-default: #363632;
+  --border-strong: #4a4a44;
+  --border-subtle: rgba(54, 54, 50, 0.6);
+
+  --accent: #4a6fa5;
+  --accent-hover: #5a82bd;
+  --accent-text: #e8f0f8;
+  --accent-subtle: rgba(74, 111, 165, 0.25);
+
+  --danger: #ef4444;
+  --danger-bg: #3f1a1a;
+  --success: #4ade80;
+  --success-bg: #1a3322;
+
+  --code-bg: #1f1f1c;
+  --code-text: #e8e7e2;
 }
 ```
 
-### Tailwind v4
+### Tailwind v4 Theme
 
 ```css
 @theme {
-  /* Colors */
-  --color-ivory-canvas: #faf9f5;
-  --color-pure-white: #ffffff;
-  --color-warm-parchment: #f0eee6;
-  --color-ink-black: #141413;
-  --color-charcoal: #1f1e1d;
-  --color-warm-slate: #3d3d3a;
-  --color-stone-gray: #73726c;
-  --color-pewter: #9c9a92;
-  --color-linen-border: #dedcd1;
-  --color-cool-stone: #b7b7b5;
-  --color-dust-blue: #ccdbe8;
+  /* Semantic surface colors */
+  --color-canvas: var(--bg-canvas);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-interactive: var(--bg-interactive);
+  --color-overlay: var(--bg-overlay);
+
+  /* Semantic text colors */
+  --color-ink: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-placeholder: var(--text-placeholder);
+
+  /* Semantic border colors */
+  --color-border: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-border-subtle: var(--border-subtle);
+
+  /* Semantic accent colors */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-text: var(--accent-text);
+  --color-accent-subtle: var(--accent-subtle);
+
+  /* Semantic feedback colors */
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+
+  /* Semantic code colors */
+  --color-code-bg: var(--code-bg);
+  --color-code-text: var(--code-text);
 
   /* Typography */
-  --font-anthropic-serif: 'Anthropic Serif', ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-anthropic-sans: 'Anthropic Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-anthropic-serif: 'Source Serif 4', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+  --font-anthropic-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Typography — Scale */
+  /* Scale */
   --text-caption: 11px;
   --leading-caption: 1.5;
   --text-body: 15px;
@@ -361,7 +435,7 @@ The dual-font approach is a core brand signature: Anthropic Serif for all editor
   --spacing-80: 80px;
   --spacing-96: 96px;
 
-  /* Border Radius */
+  /* Border radius */
   --radius-lg: 9.6px;
   --radius-2xl: 16px;
   --radius-3xl: 24px;
