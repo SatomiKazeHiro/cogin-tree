@@ -4,7 +4,13 @@
       正在学习
     </h2>
 
-    <div v-if="loading" class="text-muted">加载中…</div>
+    <AppSkeleton
+      v-if="loading"
+      variant="dashboard-cards"
+      :count="3"
+      :with-progress="true"
+      aria-label="加载正在学习…"
+    />
     <div v-else-if="items.length === 0" class="text-muted">
       还没有学习记录，打开一个技能树开始学习吧。
     </div>

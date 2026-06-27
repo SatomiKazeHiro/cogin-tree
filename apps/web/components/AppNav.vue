@@ -1,6 +1,9 @@
 <template>
   <nav class="sticky top-0 z-50 border-b border-border bg-canvas/90 backdrop-blur">
-    <div class="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-6">
+    <div
+      class="mx-auto flex h-14 items-center justify-between px-6"
+      :class="isFullWidth ? 'max-w-none' : 'max-w-[1200px]'"
+    >
       <NuxtLink :to="auth.isAuthenticated ? '/dashboard' : '/'" class="font-anthropic-serif text-[18px] font-[330] text-ink">
         技能树学习
       </NuxtLink>
@@ -36,4 +39,9 @@
 
 <script setup lang="ts">
 const auth = useAuthStore();
+const route = useRoute();
+
+const isFullWidth = computed(() =>
+  route.meta.layout === 'fullscreen' || route.path.startsWith('/skills/'),
+);
 </script>

@@ -9,7 +9,13 @@
       </AppButton>
     </div>
 
-    <div v-if="loading" class="text-muted">加载中…</div>
+    <AppSkeleton
+      v-if="loading"
+      variant="dashboard-cards"
+      :count="3"
+      :with-progress="false"
+      aria-label="加载我的技能树…"
+    />
     <div v-else-if="trees.length === 0" class="text-muted">
       还没有技能树，从上方创建一个开始。
     </div>

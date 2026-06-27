@@ -204,12 +204,12 @@ export function useSkillTreePage(treeId: string) {
 
   async function generateContent(l2Id: string) {
     setNodeLoading(l2Id, true);
+    selectedL2Id.value = l2Id;
     try {
       const content = await api<FlowContent>(`/nodes/${l2Id}/content`, {
         method: 'POST',
       });
       contents.value = { ...contents.value, [l2Id]: content };
-      selectedL2Id.value = l2Id;
       toast.success('分析完成，学习内容已生成');
       rebuildGraph();
     } finally {

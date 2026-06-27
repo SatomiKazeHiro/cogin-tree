@@ -15,7 +15,6 @@
     />
 
     <DashboardRecommendationSection
-      v-if="auth.hasPortrait"
       :recommendations="recommendations"
       :loading="loadingRecommendations"
       @start="openRecommendationWizard"
@@ -34,21 +33,6 @@
     />
 
     <p v-if="submitError" class="mt-4 text-[14px] text-danger">{{ submitError }}</p>
-
-    <section v-if="!auth.hasPortrait" class="rounded-[16px] border border-border bg-surface p-6">
-      <h2 class="mb-2 font-anthropic-serif text-[24px] font-[330] text-ink">
-        为你推荐
-      </h2>
-      <p class="mb-4 text-muted">
-        完成肖像问卷后，我们将基于你的兴趣与目标生成个性化推荐。
-      </p>
-      <NuxtLink
-        to="/onboarding"
-        class="inline-flex rounded-[9.6px] bg-secondary px-4 py-1.5 text-[14px] text-surface transition-colors hover:bg-ink"
-      >
-        去设置肖像
-      </NuxtLink>
-    </section>
   </div>
 </template>
 

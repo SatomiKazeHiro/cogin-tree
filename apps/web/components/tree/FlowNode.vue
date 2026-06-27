@@ -1,14 +1,15 @@
 <template>
-  <div
-    class="group relative flex h-[190px] w-[340px] overflow-hidden rounded-[16px] border bg-surface transition-all duration-300"
-    :class="[borderColorClass, statusOpacityClass, { 'outline outline-2 outline-dashed outline-ink outline-offset-[3px]': isOutlined }]"
-  >
-    <Handle
-      v-if="data.type !== 'root'"
-      type="target"
-      :position="Position.Left"
-      class="vue-flow-handle"
-    />
+  <div class="group relative">
+    <div
+      class="relative flex h-[190px] w-[340px] overflow-hidden rounded-[16px] border bg-surface transition-all duration-300"
+      :class="[borderColorClass, statusOpacityClass, { 'outline outline-2 outline-dashed outline-ink outline-offset-[3px]': isOutlined }]"
+    >
+      <Handle
+        v-if="data.type !== 'root'"
+        type="target"
+        :position="Position.Left"
+        class="vue-flow-handle"
+      />
 
     <!-- Level stripe -->
     <div class="w-1.5 shrink-0" :class="stripeClass" />
@@ -49,18 +50,7 @@
         暂无描述
       </p>
 
-      <div class="mt-auto flex items-center justify-between pt-3">
-        <button
-          v-if="canCollapse"
-          type="button"
-          class="flex items-center gap-1 text-[13px] text-muted transition-colors hover:text-ink"
-          @click.stop="selectThisNode(); emit('toggleCollapse', id)"
-        >
-          <span>{{ data.collapsed ? '▸' : '▼' }}</span>
-          <span>{{ data.collapsed ? '展开' : '收起' }}</span>
-        </button>
-        <span v-else />
-
+      <div class="mt-auto flex items-center justify-end pt-3">
         <button
           v-if="actionButton"
           type="button"
@@ -75,17 +65,30 @@
       </div>
     </div>
 
-    <Handle
-      v-if="data.type !== 'l2'"
-      type="source"
-      :position="Position.Right"
-      class="vue-flow-handle"
-    />
+      <Handle
+        v-if="data.type !== 'l2'"
+        type="source"
+        :position="Position.Right"
+        class="vue-flow-handle"
+      />
+    </div>
+
+    <button
+      v-if="canCollapse"
+      type="button"
+      class="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-border bg-surface text-muted shadow-sm transition-all hover:border-strong hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      :title="data.collapsed ? '展开子节点' : '收起子节点'"
+      @click.stop="selectThisNode(); emit('toggleCollapse', id)"
+    >
+      <Plus v-if="data.collapsed" class="h-4 w-4" />
+      <Minus v-else class="h-4 w-4" />
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { Handle, Position, useVueFlow } from '@vue-flow/core';
+import { Plus, Minus } from 'lucide-vue-next';
 import { NodeStatus, NodeLearningStatus } from '@skill/shared';
 import type { FlowNodeData } from '../../composables/useTreeLayout';
 
@@ -101,13 +104,18 @@ const emit = defineEmits<{
   (e: 'toggleCollapse', nodeId: string): void;
 }>();
 
-const { findNode, addSelectedNodes } = useVueFlow();
+const { findNode, addSelectedNodes, removeSelectedNodes, getSelectedNodes } = useVueFlow();
 
 function selectThisNode() {
   const node = findNode(props.id);
-  if (node) {
-    addSelectedNodes([node]);
+  if (!node) return;
+
+  // 单选：先取消其它选中节点，再选中当前节点
+  const others = getSelectedNodes.value.filter((n) => n.id !== props.id);
+  if (others.length > 0) {
+    removeSelectedNodes(others);
   }
+  addSelectedNodes([node]);
 }
 
 const isOutlined = computed(() => props.selected || props.highlighted);
