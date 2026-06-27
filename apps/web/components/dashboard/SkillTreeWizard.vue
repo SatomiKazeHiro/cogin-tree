@@ -303,6 +303,7 @@ async function submit() {
           name: form.value.name,
           description: form.value.description,
           type: form.value.type,
+          keywords: form.value.keywords,
           selectedPoints: selectedPoints.value,
         },
       });

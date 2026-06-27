@@ -24,15 +24,6 @@
 
     <!-- Tree -->
     <div v-if="open" class="flex-1 overflow-y-auto py-3">
-      <div class="px-3 pb-2">
-        <div class="flex items-center gap-2 rounded-[9.6px] px-2 py-1.5 text-[13px] font-[500] text-ink">
-          <span class="flex h-5 w-5 items-center justify-center rounded-[5px] bg-ink text-[10px] text-surface">
-            R
-          </span>
-          <span class="truncate">{{ rootName }}</span>
-        </div>
-      </div>
-
       <ul class="px-2">
         <li v-for="l1 in l1Nodes" :key="l1.id" class="mb-0.5">
           <button
@@ -84,7 +75,6 @@ import LearningStatusDot from './LearningStatusDot.vue';
 
 const props = defineProps<{
   open: boolean;
-  rootName: string;
   l1Nodes: FlowTreeNode[];
   childrenByL1: Record<string, FlowTreeNode[]>;
   learningStatusByNodeId: Record<string, NodeLearningStatus>;

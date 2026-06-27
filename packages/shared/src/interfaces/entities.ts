@@ -67,6 +67,7 @@ export interface SkillTree {
   description: string;
   type: TreeType;
   globalConfigId?: string;
+  keywords?: string;
   status: 'ACTIVE' | 'ARCHIVED';
   createdAt: Date;
   updatedAt: Date;

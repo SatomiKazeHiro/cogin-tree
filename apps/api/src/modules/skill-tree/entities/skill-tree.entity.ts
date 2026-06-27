@@ -27,6 +27,9 @@ export class SkillTree {
   @Column({ name: 'global_config_id', nullable: true })
   globalConfigId?: string;
 
+  @Column({ nullable: true })
+  keywords?: string;
+
   @Column({ type: 'enum', enum: ['ACTIVE', 'ARCHIVED'], default: 'ACTIVE' })
   status: 'ACTIVE' | 'ARCHIVED';
 

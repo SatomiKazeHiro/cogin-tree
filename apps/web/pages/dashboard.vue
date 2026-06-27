@@ -3,7 +3,7 @@
     <DashboardHeader :username="auth.user?.username" />
 
     <DashboardLearningSection
-      :trees="trees"
+      :records="records"
       :loading="loadingTrees"
       @create="openCreateWizard"
       @delete="deleteTree"
@@ -67,7 +67,12 @@ const router = useRouter();
 const toast = useToast();
 const { confirm } = useConfirm();
 
-const trees = ref<SkillTree[]>([]);
+interface LearningRecordItem {
+  skillTree: SkillTree;
+  progress: number;
+}
+
+const records = ref<LearningRecordItem[]>([]);
 const loadingTrees = ref(true);
 const currentLearning = ref<CurrentLearningItem[]>([]);
 const loadingCurrentLearning = ref(true);
@@ -105,9 +110,9 @@ onMounted(async () => {
 async function loadDashboard() {
   try {
     const data = await api<DashboardResponse & { currentLearning: CurrentLearningItem[] }>('/dashboard');
-    trees.value = data.learningRecords
-      .map((r) => r.skillTree)
-      .filter((t): t is SkillTree => !!t);
+    records.value = data.learningRecords
+      .map((r) => ({ skillTree: r.skillTree, progress: r.progress }))
+      .filter((r): r is LearningRecordItem => !!r.skillTree);
     currentLearning.value = data.currentLearning || [];
   } finally {
     loadingTrees.value = false;
@@ -154,7 +159,7 @@ async function handleWizardSuccess(tree: SkillTree) {
 }
 
 async function deleteTree(id: string) {
-  const tree = trees.value.find((t) => t.id === id);
+  const tree = records.value.find((r) => r.skillTree.id === id)?.skillTree;
   const confirmed = await confirm({
     title: '删除技能树',
     message: `确定要删除「${tree?.name ?? '该技能树'}」吗？\n相关的学习记录和生成的内容都会被清除，此操作不可恢复。`,
@@ -167,7 +172,7 @@ async function deleteTree(id: string) {
   submitError.value = '';
   try {
     await api(`/skill-trees/${id}`, { method: 'DELETE' });
-    trees.value = trees.value.filter((t) => t.id !== id);
+    records.value = records.value.filter((r) => r.skillTree.id !== id);
     toast.success('技能树已删除');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : '删除失败';

@@ -18,4 +18,8 @@ export class CreateSkillTreeDto {
   @IsString({ each: true })
   @MinLength(1, { each: true })
   selectedPoints?: string[];
+
+  @IsOptional()
+  @IsString()
+  keywords?: string;
 }

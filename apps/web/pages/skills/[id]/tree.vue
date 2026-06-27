@@ -1,9 +1,9 @@
 <template>
-  <div class="flex h-full w-full overflow-hidden bg-canvas">
+  <div class="relative flex h-full w-full overflow-hidden bg-canvas">
     <!-- Directory panel -->
     <TreeDirectoryPanel
+      class="absolute left-0 top-0 z-20"
       :open="directoryOpen"
-      :root-name="tree?.name ?? ''"
       :l1-nodes="l1Nodes"
       :children-by-l1="childrenByL1"
       :learning-status-by-node-id="learningStatusByNodeId"
@@ -15,14 +15,6 @@
 
     <!-- Canvas -->
     <div class="relative h-full flex-1 overflow-hidden">
-      <!-- Back button -->
-      <NuxtLink
-        to="/dashboard"
-        class="absolute left-6 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-[9.6px] border border-border bg-surface text-muted shadow-none transition-colors hover:border-strong hover:text-ink"
-      >
-        <ArrowLeft class="h-5 w-5" />
-      </NuxtLink>
-
       <ClientOnly>
         <TreeVueFlowGraph
           ref="vueFlowGraphRef"
@@ -68,14 +60,13 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft } from 'lucide-vue-next';
-
 definePageMeta({
   middleware: ['auth'],
   layout: 'fullscreen',
 });
 
 const route = useRoute();
+const pageHeader = usePageHeader();
 const vueFlowGraphRef = ref<{ fitViewToNode: (nodeId: string) => void }>();
 
 const {
@@ -108,5 +99,19 @@ onMounted(async () => {
   } catch (err) {
     console.error('[TreePage] load failed', err);
   }
+});
+
+watch(
+  () => tree.value?.name,
+  (name) => {
+    if (name) {
+      pageHeader.value = { title: name, backTo: '/dashboard' };
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  pageHeader.value = {};
 });
 </script>

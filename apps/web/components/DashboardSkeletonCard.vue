@@ -14,10 +14,10 @@
     </div>
 
     <div v-if="withProgress" class="flex items-center gap-3">
-      <div class="h-2 flex-1 rounded-full bg-elevated" />
-      <div class="h-3 w-8 rounded bg-elevated" />
+      <div class="h-2 flex-1 rounded-full bg-border" />
+      <div class="h-3 w-8 rounded bg-border" />
     </div>
-    <div v-else class="h-2 w-full rounded-full bg-elevated" />
+    <div v-else class="h-2 w-full rounded-full bg-border" />
   </div>
 </template>
 

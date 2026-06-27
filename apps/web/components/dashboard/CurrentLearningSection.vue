@@ -8,11 +8,11 @@
       v-if="loading"
       variant="dashboard-cards"
       :count="3"
-      :with-progress="true"
+      :with-progress="false"
       aria-label="加载正在学习…"
     />
     <div v-else-if="items.length === 0" class="text-muted">
-      还没有学习记录，打开一个技能树开始学习吧。
+      还没有正在学习的技能树，打开一个技能树开始学习吧。
     </div>
     <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <NuxtLink
@@ -37,18 +37,8 @@
           {{ item.skillTree?.description || '暂无描述' }}
         </p>
 
-        <div v-if="item.lastNode" class="mb-3 text-[13px] text-secondary">
+        <div v-if="item.lastNode" class="text-[13px] text-secondary">
           最近学习：{{ item.lastNode.title }}
-        </div>
-
-        <div class="flex items-center gap-3">
-          <div class="h-2 flex-1 overflow-hidden rounded-full bg-elevated">
-            <div
-              class="h-full rounded-full bg-accent transition-all"
-              :style="{ width: `${item.progress}%` }"
-            />
-          </div>
-          <span class="shrink-0 text-[13px] text-muted">{{ item.progress }}%</span>
         </div>
       </NuxtLink>
     </div>

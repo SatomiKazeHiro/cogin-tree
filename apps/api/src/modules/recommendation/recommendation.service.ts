@@ -136,6 +136,7 @@ export class RecommendationService {
         name: recommendation.title,
         description: recommendation.description,
         type: (type as any) || 'ENTRY',
+        keywords: recommendation.keywords?.join('，'),
         selectedPoints,
       },
       userId,

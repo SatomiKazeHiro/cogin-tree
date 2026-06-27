@@ -28,6 +28,26 @@
     <p class="line-clamp-2 text-[14px] text-muted">
       {{ tree.description || '暂无描述' }}
     </p>
+
+    <div v-if="keywordList.length > 0" class="mt-3 flex flex-wrap gap-1.5">
+      <span
+        v-for="keyword in keywordList"
+        :key="keyword"
+        class="rounded-full bg-border px-2 py-0.5 text-[12px] text-secondary"
+      >
+        {{ keyword }}
+      </span>
+    </div>
+
+    <div v-if="showProgress" class="mt-4 flex items-center gap-3">
+      <div class="h-2 flex-1 overflow-hidden rounded-full bg-border">
+        <div
+          class="h-full rounded-full bg-accent transition-all"
+          :style="{ width: `${progress}%` }"
+        />
+      </div>
+      <span class="shrink-0 text-[13px] text-muted">{{ progress }}%</span>
+    </div>
   </div>
 </template>
 
@@ -35,12 +55,32 @@
 import { Trash2 } from 'lucide-vue-next';
 import type { SkillTree } from '@skill/shared';
 
-const props = defineProps<{ tree: SkillTree }>();
+const props = withDefaults(
+  defineProps<{
+    tree: SkillTree;
+    progress?: number;
+  }>(),
+  {
+    progress: undefined,
+  },
+);
+
 const emit = defineEmits<{
   (e: 'delete', id: string): void;
 }>();
 
 const router = useRouter();
+
+const showProgress = computed(() => typeof props.progress === 'number');
+
+const keywordList = computed(() => {
+  if (!props.tree.keywords) return [];
+  return props.tree.keywords
+    .split(/[,，]/)
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0)
+    .slice(0, 4);
+});
 
 const typeLabel = computed(() => {
   switch (props.tree.type) {

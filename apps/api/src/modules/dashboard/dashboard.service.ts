@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { NodeLearningStatus } from '@skill/shared';
 import { UserService } from '../user/user.service';
 import { LearningRecordService } from '../learning-record/learning-record.service';
 import { SkillTreeService } from '../skill-tree/skill-tree.service';
@@ -43,7 +44,9 @@ export class DashboardService {
       }),
     );
 
-    const recentNodeRecords = await this.nodeLearningRecordService.findRecentByUser(userId, 5);
+    const recentNodeRecords = (await this.nodeLearningRecordService.findRecentByUser(userId, 5)).filter(
+      (record) => record.status === NodeLearningStatus.IN_PROGRESS,
+    );
     const recentLearningNodes = await Promise.all(
       recentNodeRecords.map(async (record) => {
         const skillTree = await getTree(record.skillTreeId);
@@ -74,7 +77,8 @@ export class DashboardService {
               }
             : null,
         };
-      });
+      })
+      .filter((item) => item.lastNode);
 
     return {
       portrait,

@@ -24,17 +24,28 @@
 
     <Background :pattern-color="backgroundPatternColor" :gap="16" />
     <Controls />
+    <MiniMap
+      class="rounded-[12px] border border-border bg-surface/90 shadow-none"
+      :node-color="miniMapNodeColor"
+      :node-stroke-color="miniMapNodeStroke"
+      :mask-color="miniMapMaskColor"
+      pannable
+      zoomable
+    />
   </VueFlow>
 </template>
 
 <script setup lang="ts">
 import { VueFlow } from '@vue-flow/core';
+import type { GraphNode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
+import { MiniMap } from '@vue-flow/minimap';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
+import '@vue-flow/minimap/dist/style.css';
 import FlowNode from './FlowNode.vue';
-import type { FlowNode as FlowNodeType, FlowEdge } from '../../composables/useTreeLayout';
+import type { FlowNode as FlowNodeType, FlowEdge, FlowNodeData } from '../../composables/useTreeLayout';
 
 const props = defineProps<{
   nodes: FlowNodeType[];
@@ -63,6 +74,18 @@ const backgroundPatternColor = computed(() => {
   // 使用 CSS 变量让背景网格随主题变化
   return 'var(--border-strong)';
 });
+
+function miniMapNodeColor(node: GraphNode<FlowNodeData, any, any>) {
+  if (node.data?.type === 'root') return 'var(--text-primary)';
+  if (node.data?.type === 'l1') return 'var(--text-secondary)';
+  return 'var(--accent)';
+}
+
+function miniMapNodeStroke(_node: GraphNode<FlowNodeData, any, any>) {
+  return 'var(--border-strong)';
+}
+
+const miniMapMaskColor = 'rgba(0, 0, 0, 0.05)';
 
 function fitViewToNode(nodeId: string) {
   vueFlow.value?.fitView({ nodes: [nodeId], padding: 0.3, duration: 300 });

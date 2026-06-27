@@ -26,7 +26,7 @@
         <span
           v-for="keyword in recommendation.keywords"
           :key="keyword"
-          class="rounded-full bg-elevated px-2 py-0.5 text-[12px] text-ink"
+          class="rounded-full bg-border px-2 py-0.5 text-[12px] text-ink"
         >
           {{ keyword }}
         </span>

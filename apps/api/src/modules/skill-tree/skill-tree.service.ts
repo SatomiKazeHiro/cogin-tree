@@ -5,6 +5,7 @@ import { TreeType, NodeLevel, LearningStatus } from '@skill/shared';
 import { SkillTree } from './entities/skill-tree.entity';
 import { TreeNode } from './entities/tree-node.entity';
 import { LearningRecord } from '../learning-record/entities/learning-record.entity';
+import { Recommendation } from '../recommendation/entities/recommendation.entity';
 import { AiIntegrationService } from '../ai-integration/ai-integration.service';
 
 @Injectable()
@@ -20,13 +21,14 @@ export class SkillTreeService {
   ) {}
 
   async create(
-    data: { name: string; description?: string; type: TreeType; selectedPoints?: string[] },
+    data: { name: string; description?: string; type: TreeType; selectedPoints?: string[]; keywords?: string },
     userId: string,
   ): Promise<SkillTree> {
     const tree = this.treeRepo.create({
       name: data.name,
       description: data.description,
       type: data.type,
+      keywords: data.keywords,
       status: 'ACTIVE',
     });
     const saved = await this.treeRepo.save(tree);
@@ -115,11 +117,8 @@ export class SkillTreeService {
   async remove(id: string): Promise<void> {
     // Detach recommendations before deleting the tree to avoid FK violation.
     await this.treeRepo.manager
-      .createQueryBuilder()
-      .update('recommendations')
-      .set({ skill_tree_id: null })
-      .where('skill_tree_id = :id', { id })
-      .execute();
+      .getRepository(Recommendation)
+      .update({ skillTreeId: id }, { skillTreeId: null as any });
 
     const nodes = await this.nodeRepo.find({ where: { treeId: id } });
     const nodeIds = nodes.map((n) => n.id);
