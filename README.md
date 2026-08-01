@@ -187,7 +187,6 @@ pnpm --filter prompt-manager build
 - [DESIGN.md](./docs/DESIGN.md) — 视觉与设计系统
 - [系统架构设计.md](./docs/系统架构设计.md) — 系统架构与数据模型
 - [AGENTS.md](./AGENTS.md) — AI 助手项目指南
-- [VueFlow-Phase2-Plan.md](./VueFlow-Phase2-Plan.md) — Vue Flow 技能详情页二期计划
 
 ---
 

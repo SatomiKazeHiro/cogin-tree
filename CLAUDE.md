@@ -66,7 +66,7 @@ Run these from the repository root (`D:\MGit-Projects\cogni-tree`).
   - `learning-record` — track progress per skill tree
   - `recommendation` — on-demand personalized recommendations with per-user TTL
   - `dashboard` — aggregates learning records for the dashboard
-  - `config` — generic global config storage (no longer used for AI provider)
+  - `dashboard` — dashboard aggregation
   - `ai-integration` — single gateway to `@skill/ai-provider`; reads AI config from `.env`
 - All controllers under `/api`.
 
