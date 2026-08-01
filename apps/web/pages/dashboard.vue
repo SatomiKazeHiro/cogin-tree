@@ -37,29 +37,11 @@
 </template>
 
 <script setup lang="ts">
-import type { SkillTree, DashboardResponse } from '@skill/shared';
+import type { SkillTree, DashboardResponse, CurrentLearningItem, Recommendation } from '@skill/shared';
 
 definePageMeta({
   middleware: ['auth'],
 });
-
-interface CurrentLearningItem {
-  skillTreeId: string;
-  skillTree: SkillTree | null;
-  status: string;
-  progress: number;
-  lastNode: { id: string; title: string; status: string; updatedAt: string } | null;
-}
-
-interface Recommendation {
-  id: string;
-  title: string;
-  description?: string;
-  reason: string;
-  matchTags: string[];
-  suggestedMode: string;
-  keywords?: string[];
-}
 
 const auth = useAuthStore();
 const { api } = useApi();
@@ -109,7 +91,7 @@ onMounted(async () => {
 
 async function loadDashboard() {
   try {
-    const data = await api<DashboardResponse & { currentLearning: CurrentLearningItem[] }>('/dashboard');
+    const data = await api<DashboardResponse>('/dashboard');
     records.value = data.learningRecords
       .map((r) => ({ skillTree: r.skillTree, progress: r.progress }))
       .filter((r): r is LearningRecordItem => !!r.skillTree);

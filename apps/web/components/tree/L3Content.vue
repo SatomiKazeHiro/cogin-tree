@@ -63,28 +63,10 @@ import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
 import { Copy, Check } from 'lucide-vue-next';
-
-interface CodeExample {
-  title: string;
-  language: string;
-  code: string;
-}
-
-interface Exercise {
-  question: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
-}
-
-interface Content {
-  coreText: string;
-  codeExamples?: CodeExample[];
-  exercises?: Exercise[];
-}
+import type { FlowContentData } from '../../composables/useTreeLayout';
 
 const props = defineProps<{
-  content: Content;
+  content: FlowContentData;
   activeTab?: 'concept' | 'code' | 'exercise';
 }>();
 

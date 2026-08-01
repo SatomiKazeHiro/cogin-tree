@@ -83,7 +83,6 @@ export class DashboardService {
     return {
       portrait,
       learningRecords,
-      recentLearningNodes,
       currentLearning,
     };
   }

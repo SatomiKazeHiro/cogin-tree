@@ -77,29 +77,11 @@
 import { X } from 'lucide-vue-next';
 import { NodeLearningStatus } from '@skill/shared';
 import { learningStatusMeta } from '../../utils/learning-status';
-
-interface CodeExample {
-  title: string;
-  language: string;
-  code: string;
-}
-
-interface Exercise {
-  question: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
-}
-
-interface Content {
-  coreText: string;
-  codeExamples?: CodeExample[];
-  exercises?: Exercise[];
-}
+import type { FlowContentData } from '../../composables/useTreeLayout';
 
 const props = defineProps<{
   title: string;
-  content: Content;
+  content: FlowContentData;
   loading?: boolean;
   nodeId?: string | null;
   learningStatus?: NodeLearningStatus;

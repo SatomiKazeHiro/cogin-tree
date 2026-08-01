@@ -1,6 +1,4 @@
-import { NodeLevel, NodeStatus, NodeLearningStatus } from '@skill/shared';
-
-export interface FlowSkillTree {
+import { NodeLevel, NodeStatus, NodeLearningStatus } from '@skill/shared';export interface FlowSkillTree {
   id: string;
   name: string;
   description?: string;
@@ -30,12 +28,15 @@ export interface FlowExercise {
   explanation: string;
 }
 
-export interface FlowContent {
-  id: string;
-  nodeId: string;
+export interface FlowContentData {
   coreText: string;
   codeExamples?: FlowCodeExample[];
   exercises?: FlowExercise[];
+}
+
+export interface FlowContent extends FlowContentData {
+  id: string;
+  nodeId: string;
 }
 
 export interface FlowNodeData {
@@ -64,9 +65,6 @@ export interface FlowEdge {
   target: string;
 }
 
-export { NodeLevel, NodeStatus, NodeLearningStatus };
-
-const NODE_WIDTH = 340;
 const NODE_HEIGHT = 190;
 const LEVEL_GAP_X = 460;
 const NODE_GAP_Y = 28;
@@ -239,9 +237,6 @@ export function useTreeLayout() {
   }
 
   return {
-    NODE_WIDTH,
-    NODE_HEIGHT,
     buildFlowElements,
-    calculatePositions,
   };
 }

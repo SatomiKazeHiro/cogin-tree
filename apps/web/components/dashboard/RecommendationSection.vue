@@ -37,16 +37,9 @@
 </template>
 
 <script setup lang="ts">
-const auth = useAuthStore();
+import type { Recommendation } from '@skill/shared';
 
-interface Recommendation {
-  id: string;
-  title: string;
-  description?: string;
-  reason: string;
-  matchTags: string[];
-  suggestedMode: string;
-}
+const auth = useAuthStore();
 
 defineProps<{
   recommendations: Recommendation[];

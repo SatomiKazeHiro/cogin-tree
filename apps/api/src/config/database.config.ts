@@ -1,7 +1,6 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { User } from '../modules/user/entities/user.entity';
 import { UserProfile } from '../modules/user/entities/user-profile.entity';
-import { GlobalConfig } from '../modules/config/entities/global-config.entity';
 import { PortraitQuestion } from '../modules/portrait/entities/portrait-question.entity';
 import { PortraitAnswer } from '../modules/portrait/entities/portrait-answer.entity';
 import { SkillTree } from '../modules/skill-tree/entities/skill-tree.entity';
@@ -23,7 +22,6 @@ export function databaseConfig(): TypeOrmModuleOptions {
     entities: [
       User,
       UserProfile,
-      GlobalConfig,
       PortraitQuestion,
       PortraitAnswer,
       SkillTree,

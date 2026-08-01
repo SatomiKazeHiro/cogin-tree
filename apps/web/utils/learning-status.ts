@@ -1,4 +1,4 @@
-import { NodeLearningStatus } from '@skill/shared';
+import { LearningStatus, NodeLearningStatus } from '@skill/shared';
 
 export interface LearningStatusMeta {
   label: string;
@@ -39,3 +39,19 @@ export function getLearningStatusMeta(status?: NodeLearningStatus): LearningStat
     ? learningStatusMeta[status]
     : learningStatusMeta[NodeLearningStatus.NOT_STARTED];
 }
+
+/** 树级学习状态（LearningRecord.status）的展示元信息。 */
+export const treeStatusMeta: Record<LearningStatus, { label: string; badgeClass: string }> = {
+  [LearningStatus.IN_PROGRESS]: {
+    label: '学习中',
+    badgeClass: 'bg-accent/10 text-accent-text',
+  },
+  [LearningStatus.COMPLETED]: {
+    label: '已完成',
+    badgeClass: 'bg-success/10 text-success',
+  },
+  [LearningStatus.ABANDONED]: {
+    label: '已放弃',
+    badgeClass: 'bg-muted/10 text-muted',
+  },
+};

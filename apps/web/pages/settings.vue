@@ -11,7 +11,9 @@
       </button>
     </div>
 
-    <DashboardHeader username="设置" />
+    <h1 class="mb-6 font-anthropic-serif text-[30px] font-[330] leading-[1.33] text-ink">
+      设置
+    </h1>
 
     <AppCard>
       <h2 class="mb-2 font-anthropic-serif text-[20px] font-[330] text-ink">

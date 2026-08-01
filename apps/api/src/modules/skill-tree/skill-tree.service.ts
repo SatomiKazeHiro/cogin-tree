@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { TreeType, NodeLevel, LearningStatus } from '@skill/shared';
 import { SkillTree } from './entities/skill-tree.entity';
 import { TreeNode } from './entities/tree-node.entity';
@@ -49,7 +49,6 @@ export class SkillTreeService {
         level: NodeLevel.L1,
         title: node.title,
         description: node.description,
-        keyPoints: node.title,
         sortOrder: index,
       }),
     );
@@ -91,21 +90,6 @@ export class SkillTreeService {
     return tree;
   }
 
-  async findByUser(userId: string): Promise<SkillTree[]> {
-    const records = await this.recordRepo.find({
-      where: { userId },
-      order: { startedAt: 'DESC' },
-    });
-    const treeIds = records.map((r) => r.skillTreeId);
-    if (treeIds.length === 0) {
-      return [];
-    }
-    return this.treeRepo.find({
-      where: { id: In(treeIds) },
-      order: { createdAt: 'DESC' },
-    });
-  }
-
   async update(
     id: string,
     data: Partial<SkillTree>,
@@ -118,7 +102,7 @@ export class SkillTreeService {
     // Detach recommendations before deleting the tree to avoid FK violation.
     await this.treeRepo.manager
       .getRepository(Recommendation)
-      .update({ skillTreeId: id }, { skillTreeId: null as any });
+      .update({ skillTreeId: id }, { skillTreeId: null });
 
     const nodes = await this.nodeRepo.find({ where: { treeId: id } });
     const nodeIds = nodes.map((n) => n.id);

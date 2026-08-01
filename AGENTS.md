@@ -15,15 +15,15 @@
 - 学习状态：每个节点可标记为 `NOT_STARTED` / `IN_PROGRESS` / `COMPLETED` / `SKIPPED`，仪表盘与节点上同步显示。
 - AI 推荐：基于用户肖像与当前学习情况生成最多 10 个学习方向推荐。
 - AI 内容生成：自动生成 L1 大纲、L2 节点、L3 核心文本/代码示例/练习题；L3 max_tokens 可通过 `.env` 的 `AI_L3_MAX_TOKENS` 配置。
-- 节点时效标记：节点状态包括 `ACTIVE`、`OUTDATED_I`、`OUTDATED_II`、`OUTDATED_III`。
+- 节点时效标记：节点状态包括 `ACTIVE`、`OUTDATED_I`、`OUTDATED_II`、`OUTDATED_III`（见 `packages/shared/src/enums/index.ts`）。
 
 技术栈：
 
 - **前端**：Vue 3 + Nuxt 3 + Pinia + Tailwind CSS v4（alpha）+ `@vue-flow/core`。
-- **后端**：NestJS + TypeORM + PostgreSQL + Passport JWT + `@nestjs/schedule`。
+- **后端**：NestJS 10 + TypeORM + PostgreSQL + Passport JWT。
 - **工作区包**：`@skill/shared`（枚举/DTO）、`@skill/ai-provider`（AI Provider 抽象）、`@skill/prompt-manager`（Prompt 模板管理）。
-- **包管理器**：pnpm 9.0.0，要求 Node.js >= 20。
-- **任务编排**：根目录使用 `turbo`，但仓库中**没有 `turbo.json`**，依赖 Turbo 默认行为。
+- **包管理器**：pnpm 9.0.0（在根 `package.json` 的 `packageManager` 中锁定），要求 Node.js >= 20。
+- **任务编排**：根目录使用 `turbo`（v2），但仓库中**没有 `turbo.json`**，依赖 Turbo 默认行为。
 
 ---
 
@@ -32,25 +32,23 @@
 ```
 D:/MGit-Projects/cogni-tree
 ├── apps/
-│   ├── api/                 # NestJS 后端
-│   └── web/                 # Nuxt 3 前端
+│   ├── api/                 # NestJS 后端（@skill/api）
+│   └── web/                 # Nuxt 3 前端（@skill/web）
 ├── packages/
-│   ├── shared/              # 共享枚举、实体接口、常量
+│   ├── shared/              # 共享枚举、实体接口、常量（@skill/shared）
 │   ├── ai-provider/         # IAIProvider + DeepSeek/OpenAI-compatible/Mock 实现
 │   └── prompt-manager/      # Prompt 模板与 JSON 解析器
 ├── scripts/
-│   └── dev.js               # 同时启动 API + Web 开发服务器
+│   └── dev.js               # 同时启动 API + Web 开发服务器（先清理 3001/3002 端口）
 ├── docs/
 │   ├── DESIGN.md            # 视觉/设计系统文档（英文）
-│   ├── 系统架构设计.md      # 系统架构与数据模型文档（中文）
-│   └── *.jpg                # 架构/优化示意图
+│   └── 系统架构设计.md      # 系统架构与数据模型文档（中文）
 ├── .env                     # 本地环境变量（已 gitignore，参考 .env.example）
 ├── .env.example             # 环境变量示例
 ├── pnpm-workspace.yaml      # workspace: apps/*, packages/*
 ├── package.json             # 根脚本与 devDependencies
 ├── tsconfig.json            # 根 TypeScript 配置（供未独立 tsconfig 的包参考）
 ├── CLAUDE.md                # Claude Code 专用提示
-├── VueFlow-Phase2-Plan.md   # Vue Flow 技能详情页二期计划
 └── AGENTS.md                # 本文件
 ```
 
@@ -60,37 +58,46 @@ D:/MGit-Projects/cogni-tree
 |------|------|
 | `auth` | JWT 注册/登录、`JwtStrategy`、`JwtAuthGuard` |
 | `user` | 用户/用户画像（`User`、`UserProfile`）CRUD |
-| `portrait` | 肖像问卷题目与提交、AI 生成肖像摘要 |
+| `portrait` | 肖像问卷题目与提交、AI 生成肖像摘要、原始答案落库（`PortraitAnswer`） |
 | `skill-tree` | 技能树（`SkillTree`）与 L1 节点（`TreeNode`）CRUD、自动生成 L1 |
 | `tree-node` | 节点展开（生成 L2）、子节点查询、节点编辑删除 |
 | `content` | L3 内容（`NodeContent`）与练习题（`Exercise`）的生成与查询 |
-| `learning-record` | 用户与学习方向的关联记录 |
+| `learning-record` | 用户与学习方向/节点的关联记录（`LearningRecord`、`NodeLearningRecord`） |
 | `recommendation` | 推荐列表、按需刷新、从推荐创建技能树 |
 | `dashboard` | 仪表盘数据聚合 |
-| `config` | 全局配置存储（当前**不再**用于 AI Provider 配置） |
 | `ai-integration` | 统一调用 `@skill/ai-provider` 与 `@skill/prompt-manager`，从 `.env` 读取 AI 配置 |
+
+其他后端要点：
+
+- `apps/api/src/health/health.controller.ts`：健康检查端点。
+- `apps/api/src/seeds/portrait-questions.seed.ts`：肖像问卷题目种子数据。
+- `apps/api/src/common/`：全局异常过滤器（`GlobalExceptionFilter`）与响应转换拦截器（`TransformInterceptor`），在 `app.module.ts` 中通过 `APP_FILTER` / `APP_INTERCEPTOR` 注册。
 
 注意：
 
-- `analysis` 模块在 `VueFlow-Phase2-Plan.md` 中有规划，但**当前代码中不存在**。
-- `recommendation-scheduler.ts` 在文档中有设计，但**当前未实现**；推荐是按需生成（用户访问 `/api/recommendations` 时检查 3 天 TTL）。
+- `analysis` 模块在设计文档（`docs/系统架构设计.md`）中有规划，但**当前代码中不存在**。
+- 推荐定时调度（`recommendation-scheduler`）在文档中有设计，但**当前未实现**；推荐是按需生成（用户访问推荐接口时检查 3 天 TTL，见 `recommendation.service.ts` 的 `RECOMMENDATION_TTL_DAYS = 3`）。
 
 ### 前端结构 (`apps/web/`)
 
 | 目录/文件 | 说明 |
 |-----------|------|
-| `pages/` | Nuxt 文件路由：`login`、`register`、`onboarding`、`dashboard`、`skills/create`、`skills/[id]/tree`、`settings` |
+| `pages/` | Nuxt 文件路由：`index`、`login`、`register`、`onboarding`、`dashboard`、`settings`、`skills/create`、`skills/[id]/tree` |
 | `layouts/` | `default.vue`（常规页面，内容区 max-width 1200px）、`fullscreen.vue`（技能树全屏，`h-screen`，导航自动铺满宽度） |
-| `components/tree/` | 技能树 Vue Flow 相关组件，按 `Tree` 前缀自动注册（如 `TreeVueFlowGraph`、`TreeDirectoryPanel`） |
-| `components/dashboard/` | 仪表盘组件（如 `DashboardSkillCard`、`DashboardCurrentLearningSection`、`DashboardRecommendationSection`） |
-| `components/portrait/` | 肖像问卷组件 |
-| `components/App*.vue` | 通用组件：`AppButton`、`AppInput`、`AppNav`、`AppToast`、`AppConfirmDialog`、`AppSkeleton` |
+| `components/tree/` | 技能树 Vue Flow 相关组件，按 `Tree` 前缀自动注册（如 `TreeVueFlowGraph`、`TreeDirectoryPanel`、`TreeL3Content`、`TreeExerciseCard`） |
+| `components/dashboard/` | 仪表盘组件（如 `DashboardSkillCard`、`DashboardCurrentLearningSection`、`DashboardRecommendationSection`、`DashboardSkillTreeWizard`） |
+| `components/portrait/` | 肖像问卷组件（`PortraitQuestionStep`、`PortraitSummary`、`PortraitProgressBar`） |
+| `components/App*.vue` | 通用组件：`AppButton`、`AppCard`、`AppInput`、`AppNav`、`AppToast`、`AppConfirmDialog`、`AppSkeleton` |
 | `components/UserMenu.vue` | 右上角用户菜单（设置/退出） |
 | `components/ThemeToggle.vue` | 主题切换按钮 |
 | `components/DashboardSkeletonCard.vue` | 仪表盘卡片骨架屏 |
-| `composables/` | `useApi`、`useAuthStore`、`useTreeLayout`、`useToast`、`useConfirm`、`useTheme`、`useSkillTreePage` |
+| `components/EmptyState.vue` | 空状态占位组件 |
+| `composables/` | `useApi`、`useAuthStore`、`useTreeLayout`、`useSkillTreePage`、`usePageHeader`、`useToast`、`useConfirm`、`useTheme` |
+| `utils/learning-status.ts` | 学习状态相关的纯函数工具 |
 | `middleware/auth.ts` | 未登录用户重定向到 `/login`（`skill-token` cookie） |
 | `assets/css/tailwind.css` | Tailwind v4 主题与设计 token |
+
+注：`stores/` 与 `types/` 目录当前为空（状态管理实际通过 `composables/` 中的 Pinia store 完成）。
 
 ---
 
@@ -141,7 +148,7 @@ NODE_ENV=development
 NUXT_PUBLIC_API_BASE_URL=http://localhost:3002/api
 ```
 
-> 重要：Nuxt **不会**读取仓库根目录的 `.env`，`NUXT_PUBLIC_API_BASE_URL` 必须放在 `apps/web/.env` 中。
+> 重要：Nuxt **不会**读取仓库根目录的 `.env`，`NUXT_PUBLIC_API_BASE_URL` 必须放在 `apps/web/.env` 中（`nuxt.config.ts` 中也有同名默认值兜底）。
 
 ---
 
@@ -153,7 +160,7 @@ NUXT_PUBLIC_API_BASE_URL=http://localhost:3002/api
 # 安装依赖
 pnpm install
 
-# 同时启动 API + Web 开发服务器（脚本会先清理 3001/3002 端口）
+# 同时启动 API + Web 开发服务器（scripts/dev.js 会先清理 3001/3002 端口，支持 Windows/Unix）
 pnpm dev
 
 # 单独启动
@@ -166,14 +173,14 @@ pnpm build
 # 类型检查
 pnpm typecheck
 # 或分别检查
-pnpm --filter api typecheck
-pnpm --filter web typecheck
+pnpm --filter api typecheck      # tsc --noEmit
+pnpm --filter web typecheck      # nuxt typecheck
 
 # 测试
 pnpm test
 # 当前仓库没有任何 .spec/.test 文件；`pnpm test` 会调用 turbo run test
 
-# Lint
+# Lint（仅 apps/api 配置了 eslint）
 pnpm lint
 ```
 
@@ -195,7 +202,7 @@ rm -rf node_modules/.vite apps/web/.nuxt
 pnpm dev
 ```
 
-> 原因：`shared` 现在同时输出 ESM (`dist/esm/`) 与 CJS (`dist/cjs/`)，类型定义在 `dist/types/`；Vite 会预打包缓存；不清理缓存会导致前端拿到旧类型/值。
+> 原因：`shared` 同时输出 ESM (`dist/esm/`) 与 CJS (`dist/cjs/`)，类型定义在 `dist/types/`；Vite 会预打包缓存；不清理缓存会导致前端拿到旧类型/值。
 > `@skill/shared` 的 `package.json` 已配置 `exports` 字段，`apps/web/nuxt.config.ts` 中已加入 `build.transpile: ['@skill/shared']`，以兼容 Nuxt 生产构建的 ESM/CJS 互操作。
 
 ---
@@ -207,11 +214,12 @@ pnpm dev
 - 入口：`apps/api/src/main.ts`
 - 全局前缀：`/api`
 - Swagger：`/api/docs`
-- CORS：`process.env.WEB_URL` 或默认 `http://localhost:3001`
+- CORS：`process.env.WEB_URL` 或默认 `http://localhost:3001`（`credentials: true`）
 - 全局管道：`ValidationPipe({ whitelist: true, transform: true })`
 - 统一响应格式：`{ code: 200, data, message: 'success' }`（`TransformInterceptor`）
 - 异常过滤：`GlobalExceptionFilter` 将异常统一为 `{ code, data: null, message }`
-- TypeORM 实体采用**显式数组导入**（`database.config.ts`），未使用 glob，避免 ESM/CJS 问题。
+- TypeORM 实体采用**显式数组导入**（`database.config.ts`），未使用 glob，避免 ESM/CJS 问题。当前注册的实体：`User`、`UserProfile`、`GlobalConfig`、`PortraitQuestion`、`PortraitAnswer`、`SkillTree`、`TreeNode`、`NodeContent`、`Exercise`、`LearningRecord`、`NodeLearningRecord`、`Recommendation`。
+- `synchronize: true` 仅在 `NODE_ENV !== 'production'` 时启用。
 - `bcryptjs` 用于密码哈希，避免 Windows 原生编译问题。
 - NestJS 编译器使用 webpack（`nest-cli.json` 中 `webpack: true`）。
 
@@ -220,10 +228,11 @@ pnpm dev
 - 入口：`app.vue`
 - 默认布局：`layouts/default.vue`（内容区 max-width 1200px 居中）
 - 技能树页面布局：`layouts/fullscreen.vue`（`h-screen overflow-hidden`，技能树填满视口；`AppNav` 在该布局下自动铺满宽度）
-- Tailwind v4 alpha 通过 `@tailwindcss/vite` 插件集成。
-- API 基础地址来自运行时配置 `runtimeConfig.public.apiBaseUrl`。
-- 自动导入：`composables/**` 目录下的组合式函数会自动导入。
+- Tailwind v4 alpha 通过 `@tailwindcss/vite` 插件集成（`vite.plugins`）。
+- API 基础地址来自运行时配置 `runtimeConfig.public.apiBaseUrl`（默认 `http://localhost:3002/api`）。
+- 自动导入：`composables/**` 目录下的组合式函数会自动导入（`imports.dirs`）。
 - 组件自动注册：`components/tree/` 下组件以 `Tree` 为前缀（如 `TreeVueFlowGraph`）。
+- 其他依赖：`markdown-it` + `highlight.js`（L3 内容渲染）、`lucide-vue-next`（图标）、`dayjs`。
 
 ---
 
@@ -235,8 +244,8 @@ pnpm dev
 
 - `src/enums/index.ts`：所有领域枚举（`TreeType`、`NodeLevel`、`NodeStatus`、`PortraitQuestionCategory`、`AnalysisType` 等）。
 - `src/interfaces/entities.ts`：实体 TypeScript 接口。
-- `src/interfaces/api.ts`：API DTO 接口。
-- `src/constants/index.ts`：常量。
+- `src/interfaces/api.ts`：前后端实际共用的响应 DTO（`DashboardResponse`、`CurrentLearningItem`）；接口定义以实际消费为准，不预留未使用的 DTO。
+- `src/constants/index.ts`：常量（当前仅 `MAX_RECOMMENDATIONS`）。
 
 后端 TypeORM 实体与 `shared` 中的接口分别维护，字段名/含义需保持一致。
 
@@ -252,14 +261,14 @@ pnpm dev
 - `PromptTemplate<TInput, TOutput>` 接口：`version`、`build(input)`、`parse(raw)`。
 - `PromptManager.build(stage, input)` / `PromptManager.parse(stage, raw)` 是统一入口。
 - `extractJson(raw)` 会去除 Markdown 代码块后 `JSON.parse`。
-- 当前已实现的 stage：
+- 当前已实现的 stage（`src/templates/`）：
   - `knowledge-points`（stage 0）
   - `l1-outline`（stage 1）
   - `l2-nodes`（stage 2）
   - `l3-content`（stage 3）
   - `portrait`（stage 7）
   - `recommendations`（stage 8）
-- stage 4（新增分析）与 stage 5（过期分析）在二期计划中存在，但**当前未实现**。
+- stage 4（新增分析）与 stage 5（过期分析）在设计文档中存在，但**当前未实现**。
 
 ---
 
@@ -360,11 +369,12 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 1. **没有 `turbo.json`**：`turbo run build/lint/test/typecheck` 使用默认配置；如需自定义缓存/依赖，应新增该文件。
 2. **没有测试**：需要从零建立测试覆盖。
-3. **`analysis` 模块未实现**：二期计划中的节点新增/过期分析、建议列表、采纳/忽略功能当前不存在。
+3. **`analysis` 模块未实现**：设计文档中的节点新增/过期分析、建议列表、采纳/忽略功能当前不存在。
 4. **Stage 4/5 Prompt 未实现**：`prompt-manager` 只注册了 stage 0/1/2/3/7/8。
 5. **推荐定时调度未实现**：当前是用户访问时按需生成，TTL 3 天。
 6. **ANTHROPIC Provider 未接入**：`AIProviderType.ANTHROPIC` 在工厂中未实现真实调用。
 7. **生产部署配置缺失**：没有 Dockerfile、docker-compose、CI/CD workflow 或部署脚本。
+8. **README 过期引用**：`README.md` 仍链接已删除的 `VueFlow-Phase2-Plan.md`。
 
 ---
 

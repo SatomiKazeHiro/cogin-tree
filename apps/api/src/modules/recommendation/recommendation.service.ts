@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import {
   LearningStatus,
   RecommendationSource,
+  TreeType,
+  MAX_RECOMMENDATIONS,
 } from '@skill/shared';
 import { Recommendation } from './entities/recommendation.entity';
 import { UserService } from '../user/user.service';
@@ -12,7 +14,6 @@ import { SkillTreeService } from '../skill-tree/skill-tree.service';
 import { AiIntegrationService } from '../ai-integration/ai-integration.service';
 
 const RECOMMENDATION_TTL_DAYS = 3;
-const MAX_RECOMMENDATIONS = 10;
 
 @Injectable()
 export class RecommendationService {
@@ -135,7 +136,7 @@ export class RecommendationService {
       {
         name: recommendation.title,
         description: recommendation.description,
-        type: (type as any) || 'ENTRY',
+        type: (type as TreeType) || TreeType.ENTRY,
         keywords: recommendation.keywords?.join('，'),
         selectedPoints,
       },

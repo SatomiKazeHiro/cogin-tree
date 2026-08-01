@@ -66,7 +66,6 @@ export class TreeNodeService {
         level: NodeLevel.L2,
         title: n.title,
         description: n.description,
-        keyPoints: n.title,
         sortOrder: index,
       }),
     );

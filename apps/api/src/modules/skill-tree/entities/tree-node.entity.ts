@@ -33,9 +33,6 @@ export class TreeNode {
   @Column({ nullable: true })
   description: string;
 
-  @Column({ name: 'key_points', nullable: true })
-  keyPoints?: string;
-
   @Column({ type: 'enum', enum: NodeStatus, default: NodeStatus.ACTIVE })
   status: NodeStatus;
 

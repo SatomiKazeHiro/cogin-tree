@@ -24,9 +24,6 @@ export class SkillTree {
   @Column({ type: 'enum', enum: TreeType, default: TreeType.ENTRY })
   type: TreeType;
 
-  @Column({ name: 'global_config_id', nullable: true })
-  globalConfigId?: string;
-
   @Column({ nullable: true })
   keywords?: string;
 

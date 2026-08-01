@@ -90,6 +90,7 @@
 import { Handle, Position, useVueFlow } from '@vue-flow/core';
 import { Plus, Minus } from 'lucide-vue-next';
 import { NodeStatus, NodeLearningStatus } from '@skill/shared';
+import { getLearningStatusMeta } from '../../utils/learning-status';
 import type { FlowNodeData } from '../../composables/useTreeLayout';
 
 const props = defineProps<{
@@ -133,16 +134,10 @@ const levelLabel = computed(() => {
 });
 
 const learningStatusDot = computed(() => {
-  switch (props.data.learningStatus) {
-    case NodeLearningStatus.IN_PROGRESS:
-      return { class: 'bg-accent', title: '学习中' };
-    case NodeLearningStatus.COMPLETED:
-      return { class: 'bg-success', title: '已完成' };
-    case NodeLearningStatus.SKIPPED:
-      return { class: 'bg-muted', title: '跳过' };
-    default:
-      return null;
-  }
+  const status = props.data.learningStatus;
+  if (!status || status === NodeLearningStatus.NOT_STARTED) return null;
+  const meta = getLearningStatusMeta(status);
+  return { class: meta.dotClass, title: meta.label };
 });
 
 const isOutdatedIII = computed(() => props.data.status === NodeStatus.OUTDATED_III);

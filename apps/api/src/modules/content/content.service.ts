@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NodeContent } from './entities/node-content.entity';
@@ -77,9 +77,6 @@ export class ContentService {
       return this.getContentByNodeId(nodeId) as Promise<NodeContent>;
     } catch (err) {
       console.error('[ContentService] generateContent failed', err);
-      if (err instanceof BadRequestException || err instanceof NotFoundException) {
-        throw err;
-      }
       if (err instanceof HttpException) {
         throw err;
       }

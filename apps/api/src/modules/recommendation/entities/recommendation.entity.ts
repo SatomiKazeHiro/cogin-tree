@@ -18,7 +18,7 @@ export class Recommendation {
   userId: string;
 
   @Column({ name: 'skill_tree_id', nullable: true })
-  skillTreeId?: string;
+  skillTreeId?: string | null;
 
   @Column()
   title: string;

@@ -66,7 +66,6 @@ export interface SkillTree {
   name: string;
   description: string;
   type: TreeType;
-  globalConfigId?: string;
   keywords?: string;
   status: 'ACTIVE' | 'ARCHIVED';
   createdAt: Date;
@@ -84,7 +83,6 @@ export interface TreeNode {
   level: NodeLevel;
   title: string;
   description: string;
-  keyPoints: string;
   status: NodeStatus;
   sortOrder: number;
   createdAt: Date;
@@ -133,6 +131,9 @@ export interface Recommendation {
   title: string;
   description: string;
   reason: string;
+  matchTags: string[];
+  suggestedMode?: string;
+  keywords: string[];
   source: RecommendationSource;
   isActive: boolean;
   sortOrder: number;

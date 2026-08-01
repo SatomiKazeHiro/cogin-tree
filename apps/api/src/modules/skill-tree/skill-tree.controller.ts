@@ -37,12 +37,6 @@ export class SkillTreeController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get()
-  async findAll(@Request() req: { user: { userId: string } }) {
-    return this.skillTreeService.findByUser(req.user.userId);
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.skillTreeService.findById(id);

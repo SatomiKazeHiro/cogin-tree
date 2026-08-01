@@ -40,15 +40,7 @@
 </template>
 
 <script setup lang="ts">
-interface Recommendation {
-  id: string;
-  title: string;
-  description?: string;
-  reason: string;
-  matchTags: string[];
-  suggestedMode: string;
-  keywords?: string[];
-}
+import type { Recommendation } from '@skill/shared';
 
 defineProps<{
   recommendation: Recommendation;

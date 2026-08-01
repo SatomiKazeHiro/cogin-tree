@@ -21,10 +21,6 @@ export class UserService {
     return this.userRepo.findOne({ where: { id } });
   }
 
-  async findAll(): Promise<User[]> {
-    return this.userRepo.find();
-  }
-
   async create(data: {
     username: string;
     email: string;

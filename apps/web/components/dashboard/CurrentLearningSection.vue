@@ -27,9 +27,9 @@
           </h3>
           <span
             class="shrink-0 rounded-full px-2 py-0.5 text-[12px]"
-            :class="statusBadgeClass(item.status)"
+            :class="treeStatusMeta[item.status]?.badgeClass"
           >
-            {{ statusLabel(item.status) }}
+            {{ treeStatusMeta[item.status]?.label }}
           </span>
         </div>
 
@@ -46,27 +46,11 @@
 </template>
 
 <script setup lang="ts">
-import type { SkillTree, NodeLearningStatus } from '@skill/shared';
-import { getLearningStatusMeta } from '../../utils/learning-status';
-
-interface CurrentLearningItem {
-  skillTreeId: string;
-  skillTree: SkillTree | null;
-  status: string;
-  progress: number;
-  lastNode: { id: string; title: string; status: string; updatedAt: string } | null;
-}
+import type { CurrentLearningItem } from '@skill/shared';
+import { treeStatusMeta } from '../../utils/learning-status';
 
 defineProps<{
   items: CurrentLearningItem[];
   loading?: boolean;
 }>();
-
-function statusLabel(status: string | undefined) {
-  return getLearningStatusMeta(status as NodeLearningStatus).label;
-}
-
-function statusBadgeClass(status: string | undefined) {
-  return getLearningStatusMeta(status as NodeLearningStatus).badgeClass;
-}
 </script>

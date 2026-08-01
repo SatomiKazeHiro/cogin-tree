@@ -30,12 +30,6 @@ export class NodeLearningRecord {
   @Column({ name: 'completed_at', nullable: true })
   completedAt?: Date;
 
-  @Column({ name: 'duration_seconds', nullable: true })
-  durationSeconds?: number;
-
-  @Column({ name: 'exercise_correct_count', nullable: true })
-  exerciseCorrectCount?: number;
-
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

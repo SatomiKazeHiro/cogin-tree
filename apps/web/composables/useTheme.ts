@@ -22,23 +22,10 @@ export const useTheme = defineStore('theme', () => {
 
   const mode = ref<ThemeMode>(cookie.value);
 
-  const isDark = computed(() => {
-    if (mode.value === 'dark') return true;
-    if (mode.value === 'light') return false;
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
   function setMode(next: ThemeMode) {
     mode.value = next;
     cookie.value = next;
     applyTheme(next);
-  }
-
-  function cycle() {
-    const order: ThemeMode[] = ['light', 'dark', 'system'];
-    const next = order[(order.indexOf(mode.value) + 1) % order.length];
-    setMode(next);
   }
 
   // 初始化：客户端与 SSR 后都需要应用一次
@@ -61,8 +48,6 @@ export const useTheme = defineStore('theme', () => {
 
   return {
     mode,
-    isDark,
     setMode,
-    cycle,
   };
 });

@@ -6,7 +6,6 @@ import { databaseConfig } from './config/database.config';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
-import { ConfigModule as AppConfigModule } from './modules/config/config.module';
 import { AiIntegrationModule } from './modules/ai-integration/ai-integration.module';
 import { PortraitModule } from './modules/portrait/portrait.module';
 import { SkillTreeModule } from './modules/skill-tree/skill-tree.module';
@@ -27,7 +26,6 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     TypeOrmModule.forRoot(databaseConfig()),
     AuthModule,
     UserModule,
-    AppConfigModule,
     AiIntegrationModule,
     PortraitModule,
     SkillTreeModule,
