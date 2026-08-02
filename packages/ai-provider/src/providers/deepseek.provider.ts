@@ -21,7 +21,9 @@ export class DeepseekProvider implements IAIProvider {
         { role: 'user', content: prompt },
       ],
       temperature: options?.temperature ?? 0.7,
-      max_tokens: options?.maxTokens ?? 2048,
+      // 推理模型（如 deepseek-v4-flash）会先消耗大量 reasoning tokens，
+      // 默认额度过小会导致正文被截断为空，因此默认给到 8192
+      max_tokens: options?.maxTokens ?? 8192,
       response_format: { type: 'json_object' },
     });
 
