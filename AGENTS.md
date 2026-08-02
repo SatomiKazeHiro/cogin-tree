@@ -374,6 +374,7 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 5. **推荐定时调度未实现**：当前是用户访问时按需生成，TTL 3 天。
 6. **ANTHROPIC Provider 未接入**：`AIProviderType.ANTHROPIC` 在工厂中未实现真实调用。
 7. **生产部署配置缺失**：没有 Dockerfile、docker-compose、CI/CD workflow 或部署脚本。
+8. **Stage 6（面试视图）未实现**：设计文档中的面试模式视图（`InterviewView.vue`、面试 Q&A 列表）当前不存在；`TreeType` 虽有面试树模式，但前端没有对应的专用视图。
 
 ---
 

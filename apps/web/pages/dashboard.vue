@@ -102,13 +102,36 @@ async function loadDashboard() {
   }
 }
 
+let retriedStaleRecommendations = false;
+let staleRetryTimer: ReturnType<typeof setTimeout> | undefined;
+
 async function loadRecommendations() {
   try {
     recommendations.value = await api<Recommendation[]>('/recommendations');
   } finally {
     loadingRecommendations.value = false;
   }
+
+  // 后端对过期推荐会先返回旧数据并后台异步刷新；
+  // 检测到过期的，约 15s 后静默重取一次换新（不重置 loading，避免骨架屏闪烁）
+  const hasExpired = recommendations.value.some(
+    (r) => r.expireAt && new Date(r.expireAt) < new Date(),
+  );
+  if (hasExpired && !retriedStaleRecommendations) {
+    retriedStaleRecommendations = true;
+    staleRetryTimer = setTimeout(async () => {
+      try {
+        recommendations.value = await api<Recommendation[]>('/recommendations');
+      } catch {
+        // 静默失败：保留旧推荐
+      }
+    }, 15000);
+  }
 }
+
+onUnmounted(() => {
+  if (staleRetryTimer) clearTimeout(staleRetryTimer);
+});
 
 function openCreateWizard() {
   wizardState.value = {

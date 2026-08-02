@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -17,6 +17,7 @@ const RECOMMENDATION_TTL_DAYS = 3;
 
 @Injectable()
 export class RecommendationService {
+  private readonly logger = new Logger(RecommendationService.name);
   private generating = new Map<string, Promise<Recommendation[]>>();
 
   constructor(
@@ -31,11 +32,25 @@ export class RecommendationService {
   async findForUser(userId: string): Promise<Recommendation[]> {
     const active = await this.findActiveByUser(userId);
 
-    if (active.length > 0 && active.every((r) => r.expireAt && r.expireAt > new Date())) {
+    // 首次使用、无任何推荐：只能阻塞生成
+    if (active.length === 0) {
+      return this.refreshForUser(userId);
+    }
+
+    const allValid = active.every((r) => r.expireAt && r.expireAt > new Date());
+    if (allValid) {
       return active;
     }
 
-    return this.refreshForUser(userId);
+    // 已过期：先返回旧数据，后台异步刷新
+    this.refreshInBackground(userId);
+    return active;
+  }
+
+  private refreshInBackground(userId: string): void {
+    void this.refreshForUser(userId).catch((err) =>
+      this.logger.warn(`后台刷新推荐失败 (userId=${userId}): ${err}`),
+    );
   }
 
   async findActiveByUser(userId: string): Promise<Recommendation[]> {
