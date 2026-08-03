@@ -52,15 +52,21 @@ export enum AnalysisType {
   CHECK_EXPIRE = 'CHECK_EXPIRE',
 }
 
-export enum SuggestedAction {
-  ADD = 'ADD',
-  EXPIRE = 'EXPIRE',
-}
-
 export enum AnalysisJobStatus {
   PENDING = 'PENDING',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
+}
+
+export enum SuggestionAction {
+  ADD = 'ADD',
+  EXPIRE = 'EXPIRE',
+}
+
+export enum SuggestionStatus {
+  PENDING = 'PENDING',
+  APPLIED = 'APPLIED',
+  IGNORED = 'IGNORED',
 }
 
 export enum RecommendationJobStatus {

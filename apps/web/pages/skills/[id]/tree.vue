@@ -15,15 +15,24 @@
 
     <!-- Canvas -->
     <div class="relative h-full flex-1 overflow-hidden">
-      <!-- 面试模式入口（仅面试树显示） -->
-      <button
-        v-if="tree?.type === 'INTERVIEW'"
-        type="button"
-        class="absolute right-4 top-4 z-20 rounded-[9.6px] border border-border bg-surface px-4 py-2 text-[14px] text-ink transition-colors hover:border-strong hover:bg-elevated"
-        @click="router.push(`/skills/${route.params.id}/interview`)"
-      >
-        面试模式
-      </button>
+      <!-- 右上角操作：面试模式（仅面试树）/ AI 分析 -->
+      <div class="absolute right-4 top-4 z-20 flex gap-2">
+        <button
+          v-if="tree?.type === 'INTERVIEW'"
+          type="button"
+          class="rounded-[9.6px] border border-border bg-surface px-4 py-2 text-[14px] text-ink transition-colors hover:border-strong hover:bg-elevated"
+          @click="router.push(`/skills/${route.params.id}/interview`)"
+        >
+          面试模式
+        </button>
+        <button
+          type="button"
+          class="rounded-[9.6px] border border-border bg-surface px-4 py-2 text-[14px] text-ink transition-colors hover:border-strong hover:bg-elevated"
+          @click="analysisOpen = true"
+        >
+          AI 分析
+        </button>
+      </div>
 
       <ClientOnly>
         <TreeVueFlowGraph
@@ -65,6 +74,27 @@
           />
         </div>
       </Transition>
+      <!-- Analysis panel -->
+      <Transition
+        enter-active-class="transition-transform duration-300 ease-out"
+        enter-from-class="translate-x-full"
+        enter-to-class="translate-x-0"
+        leave-active-class="transition-transform duration-200 ease-in"
+        leave-from-class="translate-x-0"
+        leave-to-class="translate-x-full"
+      >
+        <div
+          v-if="analysisOpen && tree"
+          class="absolute right-0 top-0 z-40 h-full w-[50vw] min-w-[560px] max-w-[720px] border-l border-border bg-surface"
+        >
+          <AnalysisPanel
+            :tree-id="tree.id"
+            :l1-nodes="l1Nodes"
+            @close="analysisOpen = false"
+            @applied="loadTreeData()"
+          />
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -79,6 +109,7 @@ const route = useRoute();
 const router = useRouter();
 const pageHeader = usePageHeader();
 const vueFlowGraphRef = ref<{ fitViewToNode: (nodeId: string) => void }>();
+const analysisOpen = ref(false);
 
 const {
   tree,

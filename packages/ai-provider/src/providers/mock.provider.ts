@@ -67,6 +67,39 @@ export class MockProvider implements IAIProvider {
       });
     }
 
+    // Stage 4 新增分析：必须放在 L3 分支之前（分析 prompt 会提到 L1/L2）。
+    if (prompt.includes('技术趋势分析师')) {
+      return JSON.stringify({
+        suggestions: [
+          {
+            parentTitle: null,
+            title: 'AI 辅助开发实践',
+            description: '使用大模型工具提升日常开发效率。',
+            reason: 'AI 编程工具已成为主流开发方式，值得系统学习。',
+          },
+          {
+            parentTitle: null,
+            title: '云原生部署入门',
+            description: '容器化与编排的基础实践。',
+            reason: '云原生技能在招聘市场需求持续增长。',
+          },
+        ],
+      });
+    }
+
+    // Stage 5 过期分析
+    if (prompt.includes('技术观察者')) {
+      return JSON.stringify({
+        suggestions: [
+          {
+            nodeTitle: 'jQuery 基础',
+            expireLevel: 3,
+            reason: '主流框架已全面取代 jQuery，官方生态停止演进。',
+          },
+        ],
+      });
+    }
+
     // Stage 6 面试 Q&A：注意需放在推荐分支之前判断会有歧义的特征词之后均可，
     // 但必须在 L3 分支之前，因为面试 prompt 会提到 L1/L2。
     if (prompt.includes('资深技术面试官') || prompt.includes('面试 Q&A')) {

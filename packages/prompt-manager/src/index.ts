@@ -4,6 +4,8 @@ export * from './templates/stage-0-knowledge-points';
 export * from './templates/stage-1-l1-outline';
 export * from './templates/stage-2-l2-nodes';
 export * from './templates/stage-3-l3-content';
+export * from './templates/stage-4-discover-new';
+export * from './templates/stage-5-check-expire';
 export * from './templates/stage-6-interview-qa';
 export * from './templates/stage-7-portrait';
 export * from './templates/stage-8-recommendations';

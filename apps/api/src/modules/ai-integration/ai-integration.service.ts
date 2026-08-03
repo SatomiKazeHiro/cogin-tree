@@ -118,6 +118,36 @@ export class AiIntegrationService {
     };
   }
 
+  async generateDiscoverNew(input: {
+    treeName: string;
+    treeType?: string;
+    nodes: { level: number; title: string; description?: string; parentTitle?: string }[];
+  }): Promise<{
+    suggestions: { parentTitle?: string | null; title: string; description: string; reason: string }[];
+  }> {
+    const prompt = PromptManager.build('discover-new', input);
+    const provider = await this.getProvider();
+    const raw = await provider.chat(prompt);
+    return PromptManager.parse('discover-new', raw) as {
+      suggestions: { parentTitle?: string | null; title: string; description: string; reason: string }[];
+    };
+  }
+
+  async generateCheckExpire(input: {
+    treeName: string;
+    treeType?: string;
+    nodes: { level: number; title: string; description?: string; parentTitle?: string }[];
+  }): Promise<{
+    suggestions: { nodeTitle: string; expireLevel: 1 | 2 | 3; reason: string }[];
+  }> {
+    const prompt = PromptManager.build('check-expire', input);
+    const provider = await this.getProvider();
+    const raw = await provider.chat(prompt);
+    return PromptManager.parse('check-expire', raw) as {
+      suggestions: { nodeTitle: string; expireLevel: 1 | 2 | 3; reason: string }[];
+    };
+  }
+
   async generateRecommendations(context: {
     portrait: Record<string, unknown>;
     learningSkills: { name: string; type: string; description?: string }[];

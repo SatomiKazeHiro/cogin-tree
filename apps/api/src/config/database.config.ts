@@ -11,6 +11,8 @@ import { LearningRecord } from '../modules/learning-record/entities/learning-rec
 import { NodeLearningRecord } from '../modules/learning-record/entities/node-learning-record.entity';
 import { Recommendation } from '../modules/recommendation/entities/recommendation.entity';
 import { InterviewQuestion } from '../modules/interview/entities/interview-question.entity';
+import { AnalysisJob } from '../modules/analysis/entities/analysis-job.entity';
+import { SuggestedChange } from '../modules/analysis/entities/suggested-change.entity';
 
 export function databaseConfig(): TypeOrmModuleOptions {
   return {
@@ -33,6 +35,8 @@ export function databaseConfig(): TypeOrmModuleOptions {
       NodeLearningRecord,
       Recommendation,
       InterviewQuestion,
+      AnalysisJob,
+      SuggestedChange,
     ],
     synchronize: process.env.NODE_ENV !== 'production',
     logging: process.env.NODE_ENV === 'development',

@@ -10,7 +10,8 @@ import {
   PortraitQuestionCategory,
   RecommendationJobStatus,
   RecommendationSource,
-  SuggestedAction,
+  SuggestionAction,
+  SuggestionStatus,
   TreeType,
   UserRole,
 } from '../enums';
@@ -153,7 +154,7 @@ export interface RecommendationJob {
 
 export interface AnalysisJob {
   id: string;
-  targetNodeId: string;
+  treeId: string;
   analysisType: AnalysisType;
   promptSnapshot: string;
   rawResponse?: unknown;
@@ -163,13 +164,15 @@ export interface AnalysisJob {
 
 export interface SuggestedChange {
   id: string;
-  analysisJobId: string;
-  action: SuggestedAction;
+  jobId: string;
+  action: SuggestionAction;
   title: string;
   description: string;
-  keyPoints?: string;
+  reason?: string;
+  parentNodeId?: string;
+  targetNodeId?: string;
   expireLevel?: ExpireLevel;
-  applied: boolean;
+  status: SuggestionStatus;
   createdAt: Date;
 }
 

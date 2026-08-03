@@ -15,6 +15,7 @@ import { LearningRecordModule } from './modules/learning-record/learning-record.
 import { RecommendationModule } from './modules/recommendation/recommendation.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { InterviewModule } from './modules/interview/interview.module';
+import { AnalysisModule } from './modules/analysis/analysis.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -36,6 +37,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     RecommendationModule,
     DashboardModule,
     InterviewModule,
+    AnalysisModule,
   ],
   controllers: [HealthController],
   providers: [
