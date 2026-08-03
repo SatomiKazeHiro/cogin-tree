@@ -3,6 +3,7 @@ import {
   AnalysisJobStatus,
   AnalysisType,
   ExpireLevel,
+  InterviewDifficulty,
   LearningStatus,
   NodeLevel,
   NodeStatus,
@@ -169,6 +170,18 @@ export interface SuggestedChange {
   keyPoints?: string;
   expireLevel?: ExpireLevel;
   applied: boolean;
+  createdAt: Date;
+}
+
+export interface InterviewQuestion {
+  id: string;
+  treeId: string;
+  l2NodeId?: string;
+  question: string;
+  answer: string;
+  difficulty: InterviewDifficulty;
+  topic: string;
+  sortOrder: number;
   createdAt: Date;
 }
 

@@ -75,6 +75,12 @@ export enum ExpireLevel {
   III = 'III',
 }
 
+export enum InterviewDifficulty {
+  EASY = 'EASY',
+  MEDIUM = 'MEDIUM',
+  HARD = 'HARD',
+}
+
 export enum AIProviderType {
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',

@@ -1,10 +1,11 @@
-import { NodeLearningStatus } from '@skill/shared';
+import { NodeLearningStatus, TreeType } from '@skill/shared';
 import type { FlowTreeNode, FlowContent, FlowNode, FlowEdge } from './useTreeLayout';
 
 export interface SkillTreeDetail {
   id: string;
   name: string;
   description?: string;
+  type?: TreeType;
   nodes: FlowTreeNode[];
 }
 

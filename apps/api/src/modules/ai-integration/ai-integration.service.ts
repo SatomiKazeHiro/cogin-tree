@@ -93,6 +93,31 @@ export class AiIntegrationService {
     };
   }
 
+  async generateInterviewQA(input: {
+    treeName: string;
+    description?: string;
+    topics: { l1Title: string; l2Title: string; l2Description?: string }[];
+  }): Promise<{
+    questions: {
+      question: string;
+      answer: string;
+      difficulty: string;
+      topic: string;
+    }[];
+  }> {
+    const prompt = PromptManager.build('interview-qa', input);
+    const provider = await this.getProvider();
+    const raw = await provider.chat(prompt);
+    return PromptManager.parse('interview-qa', raw) as {
+      questions: {
+        question: string;
+        answer: string;
+        difficulty: string;
+        topic: string;
+      }[];
+    };
+  }
+
   async generateRecommendations(context: {
     portrait: Record<string, unknown>;
     learningSkills: { name: string; type: string; description?: string }[];

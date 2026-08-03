@@ -65,6 +65,7 @@
             >
               <option value="ENTRY">入门树</option>
               <option value="EXPERT">进阶树</option>
+              <option value="INTERVIEW">面试树</option>
             </select>
           </div>
 

@@ -12,6 +12,7 @@ export {
   AnalysisJobStatus,
   RecommendationJobStatus,
   ExpireLevel,
+  InterviewDifficulty,
   AIProviderType,
 } from './enums';
 export * from './interfaces/entities';

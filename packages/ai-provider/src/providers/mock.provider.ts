@@ -67,6 +67,34 @@ export class MockProvider implements IAIProvider {
       });
     }
 
+    // Stage 6 面试 Q&A：注意需放在推荐分支之前判断会有歧义的特征词之后均可，
+    // 但必须在 L3 分支之前，因为面试 prompt 会提到 L1/L2。
+    if (prompt.includes('资深技术面试官') || prompt.includes('面试 Q&A')) {
+      const treeName = this.extractLine(prompt, '技能树名称：') || '该技能树';
+      return JSON.stringify({
+        questions: [
+          {
+            question: `请介绍${treeName}的核心概念和适用场景。`,
+            answer: '核心概念是围绕该方向的基础原理与关键实践；适用场景包括实际项目落地、团队协作与面试应答。',
+            difficulty: 'EASY',
+            topic: '核心概念',
+          },
+          {
+            question: `${treeName}中常见的性能瓶颈有哪些，如何排查？`,
+            answer: '常见瓶颈包括资源加载、渲染阻塞与不必要的重复计算；排查手段：性能面板分析、指标监控、二分定位。',
+            difficulty: 'MEDIUM',
+            topic: '性能优化',
+          },
+          {
+            question: `在${treeName}的实战中，你做过最有挑战的技术决策是什么？`,
+            answer: '参考答案应包含：背景与约束、候选方案对比、权衡过程、最终结果与复盘，体现决策思路而非背诵概念。',
+            difficulty: 'HARD',
+            topic: '实战经验',
+          },
+        ],
+      });
+    }
+
     // L3 prompts also mention L1/L2, so check the most specific marker first.
     if (
       prompt.includes('L3') ||

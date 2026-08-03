@@ -15,6 +15,16 @@
 
     <!-- Canvas -->
     <div class="relative h-full flex-1 overflow-hidden">
+      <!-- 面试模式入口（仅面试树显示） -->
+      <button
+        v-if="tree?.type === 'INTERVIEW'"
+        type="button"
+        class="absolute right-4 top-4 z-20 rounded-[9.6px] border border-border bg-surface px-4 py-2 text-[14px] text-ink transition-colors hover:border-strong hover:bg-elevated"
+        @click="router.push(`/skills/${route.params.id}/interview`)"
+      >
+        面试模式
+      </button>
+
       <ClientOnly>
         <TreeVueFlowGraph
           ref="vueFlowGraphRef"
@@ -66,6 +76,7 @@ definePageMeta({
 });
 
 const route = useRoute();
+const router = useRouter();
 const pageHeader = usePageHeader();
 const vueFlowGraphRef = ref<{ fitViewToNode: (nodeId: string) => void }>();
 

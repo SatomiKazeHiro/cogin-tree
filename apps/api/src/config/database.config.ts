@@ -10,6 +10,7 @@ import { Exercise } from '../modules/content/entities/exercise.entity';
 import { LearningRecord } from '../modules/learning-record/entities/learning-record.entity';
 import { NodeLearningRecord } from '../modules/learning-record/entities/node-learning-record.entity';
 import { Recommendation } from '../modules/recommendation/entities/recommendation.entity';
+import { InterviewQuestion } from '../modules/interview/entities/interview-question.entity';
 
 export function databaseConfig(): TypeOrmModuleOptions {
   return {
@@ -31,6 +32,7 @@ export function databaseConfig(): TypeOrmModuleOptions {
       LearningRecord,
       NodeLearningRecord,
       Recommendation,
+      InterviewQuestion,
     ],
     synchronize: process.env.NODE_ENV !== 'production',
     logging: process.env.NODE_ENV === 'development',
