@@ -23,7 +23,7 @@
 - **后端**：NestJS 10 + TypeORM + PostgreSQL + Passport JWT。
 - **工作区包**：`@skill/shared`（枚举/DTO）、`@skill/ai-provider`（AI Provider 抽象）、`@skill/prompt-manager`（Prompt 模板管理）。
 - **包管理器**：pnpm 9.0.0（在根 `package.json` 的 `packageManager` 中锁定），要求 Node.js >= 20。
-- **任务编排**：根目录使用 `turbo`（v2），但仓库中**没有 `turbo.json`**，依赖 Turbo 默认行为。
+- **任务编排**：根目录使用 `turbo`（v2），`turbo.json` 已配置：`build/typecheck/test` 依赖 `^build`（workspace 包先构建），并启用任务缓存。
 
 ---
 
@@ -64,6 +64,7 @@ D:/MGit-Projects/cogni-tree
 | `content` | L3 内容（`NodeContent`）与练习题（`Exercise`）的生成与查询 |
 | `learning-record` | 用户与学习方向/节点的关联记录（`LearningRecord`、`NodeLearningRecord`） |
 | `recommendation` | 推荐列表、按需刷新、从推荐创建技能树 |
+| `interview` | 面试 Q&A（`InterviewQuestion`）：首次访问按树生成（stage 6）并落库缓存，`GET /skill-trees/:id/interview` |
 | `dashboard` | 仪表盘数据聚合 |
 | `ai-integration` | 统一调用 `@skill/ai-provider` 与 `@skill/prompt-manager`，从 `.env` 读取 AI 配置 |
 
@@ -82,11 +83,12 @@ D:/MGit-Projects/cogni-tree
 
 | 目录/文件 | 说明 |
 |-----------|------|
-| `pages/` | Nuxt 文件路由：`index`、`login`、`register`、`onboarding`、`dashboard`、`settings`、`skills/create`、`skills/[id]/tree` |
+| `pages/` | Nuxt 文件路由：`index`、`login`、`register`、`onboarding`、`dashboard`、`settings`、`skills/create`、`skills/[id]/tree`、`skills/[id]/interview` |
 | `layouts/` | `default.vue`（常规页面，内容区 max-width 1200px）、`fullscreen.vue`（技能树全屏，`h-screen`，导航自动铺满宽度） |
 | `components/tree/` | 技能树 Vue Flow 相关组件，按 `Tree` 前缀自动注册（如 `TreeVueFlowGraph`、`TreeDirectoryPanel`、`TreeL3Content`、`TreeExerciseCard`） |
 | `components/dashboard/` | 仪表盘组件（如 `DashboardSkillCard`、`DashboardCurrentLearningSection`、`DashboardRecommendationSection`、`DashboardSkillTreeWizard`） |
 | `components/portrait/` | 肖像问卷组件（`PortraitQuestionStep`、`PortraitSummary`、`PortraitProgressBar`） |
+| `components/interview/` | 面试模式组件（`InterviewQuestionCard`、`InterviewDifficultyFilter`），按 `Interview` 前缀自动注册 |
 | `components/App*.vue` | 通用组件：`AppButton`、`AppCard`、`AppInput`、`AppNav`、`AppToast`、`AppConfirmDialog`、`AppSkeleton` |
 | `components/UserMenu.vue` | 右上角用户菜单（设置/退出） |
 | `components/ThemeToggle.vue` | 主题切换按钮 |
@@ -178,7 +180,7 @@ pnpm --filter web typecheck      # nuxt typecheck
 
 # 测试
 pnpm test
-# 当前仓库没有任何 .spec/.test 文件；`pnpm test` 会调用 turbo run test
+# 实际仅 apps/api 有 Jest 测试（见「测试策略」）；`pnpm test` 会调用 turbo run test
 
 # Lint（仅 apps/api 配置了 eslint）
 pnpm lint
@@ -266,6 +268,7 @@ pnpm dev
   - `l1-outline`（stage 1）
   - `l2-nodes`（stage 2）
   - `l3-content`（stage 3）
+  - `interview-qa`（stage 6）
   - `portrait`（stage 7）
   - `recommendations`（stage 8）
 - stage 4（新增分析）与 stage 5（过期分析）在设计文档中存在，但**当前未实现**。
@@ -328,10 +331,14 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 ## 测试策略
 
-- 当前仓库**没有任何单元测试、集成测试或 E2E 测试文件**。
-- `apps/api/package.json` 已配置 Jest，命令为 `pnpm --filter api test`。
-- 新增功能时应补充对应测试；后端测试工具链已就绪（`@nestjs/testing`、`supertest`、`ts-jest`）。
-- 当前测试主要通过 `pnpm typecheck` 与手动运行 `pnpm dev` 验证。
+- 后端已有 Jest 单元测试（`apps/api/jest.config.js`，ts-jest，测试文件与源码同目录、以 `.spec.ts` 结尾），命令为 `pnpm --filter api test`。
+- 当前覆盖的关键路径：
+  - `modules/ai-integration/extract-json.spec.ts`：`@skill/prompt-manager` 的 `extractJson` 各类解析/失败分支；
+  - `modules/recommendation/recommendation.service.spec.ts`：推荐 TTL 判断与「过期先返回、后台刷新」逻辑；
+  - `modules/auth/auth.service.spec.ts`：注册/登录（含密码哈希校验与异常分支）。
+- 测试方式：直接 `new Service(...)` 传入 mock 依赖，不依赖 Nest 测试模块与真实数据库。
+- 前端与 packages 下各包仍无测试；新增功能时应优先为纯逻辑、可确定的代码补测试（AI 生成内容本身不可测）。
+- 日常验证仍以 `pnpm typecheck` 与手动运行 `pnpm dev` 为辅。
 
 ---
 
@@ -360,6 +367,7 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 | 技能树布局计算 | `apps/web/composables/useTreeLayout.ts` |
 | 技能树页面状态与交互 | `apps/web/composables/useSkillTreePage.ts` |
 | 技能树页面 | `apps/web/pages/skills/[id]/tree.vue` |
+| 面试模式（Q&A） | `apps/api/src/modules/interview/` + `apps/web/pages/skills/[id]/interview.vue` + `components/interview/` |
 | 设计 token / 主题切换 | `apps/web/assets/css/tailwind.css` + `composables/useTheme.ts` + `components/ThemeToggle.vue` |
 | 设计系统文档 | `docs/DESIGN.md` |
 
@@ -367,14 +375,12 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 ## 已知限制与待办（基于实际代码）
 
-1. **没有 `turbo.json`**：`turbo run build/lint/test/typecheck` 使用默认配置；如需自定义缓存/依赖，应新增该文件。
-2. **没有测试**：需要从零建立测试覆盖。
-3. **`analysis` 模块未实现**：设计文档中的节点新增/过期分析、建议列表、采纳/忽略功能当前不存在。
-4. **Stage 4/5 Prompt 未实现**：`prompt-manager` 只注册了 stage 0/1/2/3/7/8。
-5. **推荐定时调度未实现**：当前是用户访问时按需生成，TTL 3 天。
-6. **ANTHROPIC Provider 未接入**：`AIProviderType.ANTHROPIC` 在工厂中未实现真实调用。
-7. **生产部署配置缺失**：没有 Dockerfile、docker-compose、CI/CD workflow 或部署脚本。
-8. **Stage 6（面试视图）未实现**：设计文档中的面试模式视图（`InterviewView.vue`、面试 Q&A 列表）当前不存在；`TreeType` 虽有面试树模式，但前端没有对应的专用视图。
+1. **测试覆盖有限**：已建立 Jest 基建并覆盖 extractJson / 推荐 TTL / auth（见「测试策略」），其余模块仍无测试。
+2. **`analysis` 模块未实现**：设计文档中的节点新增/过期分析、建议列表、采纳/忽略功能当前不存在。
+3. **Stage 4/5 Prompt 未实现**：`prompt-manager` 已注册 stage 0/1/2/3/6/7/8，仅缺 stage 4/5。
+4. **推荐定时调度未实现**：用户访问时按需生成，TTL 3 天；已过期则先返回旧推荐并后台异步刷新（无 cron 预生成）。
+5. **ANTHROPIC Provider 未接入**：`AIProviderType.ANTHROPIC` 在工厂中未实现真实调用。
+6. **生产部署配置缺失**：没有 Dockerfile、docker-compose、CI/CD workflow 或部署脚本。
 
 ---
 
