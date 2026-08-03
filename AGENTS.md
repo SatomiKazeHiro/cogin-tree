@@ -65,6 +65,7 @@ D:/MGit-Projects/cogni-tree
 | `learning-record` | 用户与学习方向/节点的关联记录（`LearningRecord`、`NodeLearningRecord`） |
 | `recommendation` | 推荐列表、按需刷新、从推荐创建技能树 |
 | `interview` | 面试 Q&A（`InterviewQuestion`）：首次访问按树生成（stage 6）并落库缓存，`GET /skill-trees/:id/interview` |
+| `analysis` | 按树 AI 分析（stage 4/5）：新增发现 + 过期检查，`AnalysisJob` / `SuggestedChange`，建议采纳/忽略 |
 | `dashboard` | 仪表盘数据聚合 |
 | `ai-integration` | 统一调用 `@skill/ai-provider` 与 `@skill/prompt-manager`，从 `.env` 读取 AI 配置 |
 
@@ -268,10 +269,12 @@ pnpm dev
   - `l1-outline`（stage 1）
   - `l2-nodes`（stage 2）
   - `l3-content`（stage 3）
+  - `discover-new`（stage 4）
+  - `check-expire`（stage 5）
   - `interview-qa`（stage 6）
   - `portrait`（stage 7）
   - `recommendations`（stage 8）
-- stage 4（新增分析）与 stage 5（过期分析）在设计文档中存在，但**当前未实现**。
+- 全部 stage（0/1/2/3/4/5/6/7/8）均已注册。
 
 ---
 
@@ -368,6 +371,7 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 | 技能树页面状态与交互 | `apps/web/composables/useSkillTreePage.ts` |
 | 技能树页面 | `apps/web/pages/skills/[id]/tree.vue` |
 | 面试模式（Q&A） | `apps/api/src/modules/interview/` + `apps/web/pages/skills/[id]/interview.vue` + `components/interview/` |
+| AI 分析（新增/过期建议） | `apps/api/src/modules/analysis/` + `apps/web/components/analysis/AnalysisPanel.vue`（树页右上角「AI 分析」） |
 | 设计 token / 主题切换 | `apps/web/assets/css/tailwind.css` + `composables/useTheme.ts` + `components/ThemeToggle.vue` |
 | 设计系统文档 | `docs/DESIGN.md` |
 
@@ -375,12 +379,11 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 ## 已知限制与待办（基于实际代码）
 
-1. **测试覆盖有限**：已建立 Jest 基建并覆盖 extractJson / 推荐 TTL / auth（见「测试策略」），其余模块仍无测试。
-2. **`analysis` 模块未实现**：设计文档中的节点新增/过期分析、建议列表、采纳/忽略功能当前不存在。
-3. **Stage 4/5 Prompt 未实现**：`prompt-manager` 已注册 stage 0/1/2/3/6/7/8，仅缺 stage 4/5。
-4. **推荐定时调度未实现**：用户访问时按需生成，TTL 3 天；已过期则先返回旧推荐并后台异步刷新（无 cron 预生成）。
-5. **ANTHROPIC Provider 未接入**：`AIProviderType.ANTHROPIC` 在工厂中未实现真实调用。
-6. **生产部署配置缺失**：没有 Dockerfile、docker-compose、CI/CD workflow 或部署脚本。
+1. **测试覆盖有限**：已建立 Jest 基建并覆盖 extractJson / 推荐 TTL / auth / analysis 建议流（见「测试策略」），其余模块仍无测试。
+2. **推荐定时调度未实现**：用户访问时按需生成，TTL 3 天；已过期则先返回旧推荐并后台异步刷新（无 cron 预生成）。
+3. **ANTHROPIC Provider 未接入**：`AIProviderType.ANTHROPIC` 在工厂中未实现真实调用。
+4. **生产部署配置缺失**：没有 Dockerfile、docker-compose、CI/CD workflow 或部署脚本。
+5. **analysis 按树分析（偏离设计文档）**：文档设计为按节点分析（POST /nodes/:id/analyze），实际实现为按树一键分析（POST /skill-trees/:id/analysis）；`TreeNode.keyPoints` 字段未回填；建议无「重新生成」入口。
 
 ---
 
