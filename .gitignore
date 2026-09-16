@@ -40,5 +40,8 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# 本地数据库备份（pg_dump 产物，含数据，不入库）
+backups/
+
 # Turbo cache
 .turbo/
