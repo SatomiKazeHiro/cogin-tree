@@ -1,7 +1,5 @@
 import { ContentService } from './content.service';
 import { NodeContent } from './entities/node-content.entity';
-import { CodeExample } from './entities/code-example.entity';
-import { Exercise } from './entities/exercise.entity';
 import { NodeLevel } from '@skill/shared';
 
 /**
@@ -13,7 +11,7 @@ describe('ContentService（归属与短路）', () => {
   let contentRepo: { findOne: jest.Mock; update: jest.Mock };
   let nodeRepo: { findOne: jest.Mock };
   let treeRepo: { findOne: jest.Mock };
-  let aiService: { generateL3: jest.Mock };
+  let aiService: { generateL3CoreText: jest.Mock };
   let treeAccess: { assertNodeOwner: jest.Mock; assertTreeOwner: jest.Mock };
   let manager: { getRepository: jest.Mock };
   let dataSource: { transaction: jest.Mock };
@@ -33,11 +31,7 @@ describe('ContentService（归属与短路）', () => {
     nodeRepo = { findOne: jest.fn(async () => ({ id: 'l1-1', title: 'L1 领域' })) };
     treeRepo = { findOne: jest.fn(async () => ({ id: 'tree-1', name: '前端工程化' })) };
     aiService = {
-      generateL3: jest.fn(async () => ({
-        coreText: '正文'.padEnd(60, '。'),
-        codeExamples: [{ title: '示例', language: 'ts', code: 'const a = 1;' }],
-        exercises: [{ question: 'Q', options: ['a', 'b'], correctIndex: 0, explanation: 'E' }],
-      })),
+      generateL3CoreText: jest.fn(async () => ({ coreText: '正文'.padEnd(60, '。') })),
     };
     treeAccess = {
       assertNodeOwner: jest.fn(async () => l2Node),
@@ -48,9 +42,6 @@ describe('ContentService（归属与短路）', () => {
       getRepository: jest.fn((entity: unknown) => {
         if (entity === NodeContent) {
           return { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 'c1' })) };
-        }
-        if (entity === CodeExample || entity === Exercise) {
-          return { create: jest.fn((v) => v), save: jest.fn(async (v) => v) };
         }
         throw new Error('unexpected entity');
       }),
@@ -103,7 +94,7 @@ describe('ContentService（归属与短路）', () => {
     const result = await service.generateContent('node-1', 'u1');
 
     expect(result).toMatchObject({ id: 'c1', coreText: '已有' });
-    expect(aiService.generateL3).not.toHaveBeenCalled();
+    expect(aiService.generateL3CoreText).not.toHaveBeenCalled();
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 });

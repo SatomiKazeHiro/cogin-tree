@@ -3,7 +3,9 @@ import { PromptTemplate } from './prompt-engine';
 import { stage0KnowledgePoints } from './templates/stage-0-knowledge-points';
 import { stage1L1Outline } from './templates/stage-1-l1-outline';
 import { stage2L2Nodes } from './templates/stage-2-l2-nodes';
-import { stage3L3Content } from './templates/stage-3-l3-content';
+import { stage3aL3CoreText } from './templates/stage-3a-l3-core-text';
+import { stage3bL3CodeExamples } from './templates/stage-3b-l3-code-examples';
+import { stage3cL3Exercises } from './templates/stage-3c-l3-exercises';
 import { stage4DiscoverNew } from './templates/stage-4-discover-new';
 import { stage5CheckExpire } from './templates/stage-5-check-expire';
 import { stage6InterviewQA } from './templates/stage-6-interview-qa';
@@ -20,7 +22,9 @@ export const PROMPT_TEMPLATES = {
   'knowledge-points': stage0KnowledgePoints,
   'l1-outline': stage1L1Outline,
   'l2-nodes': stage2L2Nodes,
-  'l3-content': stage3L3Content,
+  'l3-core-text': stage3aL3CoreText,
+  'l3-code-examples': stage3bL3CodeExamples,
+  'l3-exercises': stage3cL3Exercises,
   'discover-new': stage4DiscoverNew,
   'check-expire': stage5CheckExpire,
   'interview-qa': stage6InterviewQA,
@@ -80,7 +84,9 @@ export {
   stage0KnowledgePoints,
   stage1L1Outline,
   stage2L2Nodes,
-  stage3L3Content,
+  stage3aL3CoreText,
+  stage3bL3CodeExamples,
+  stage3cL3Exercises,
   stage4DiscoverNew,
   stage5CheckExpire,
   stage6InterviewQA,

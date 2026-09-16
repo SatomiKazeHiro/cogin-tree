@@ -23,7 +23,7 @@ describe('AiGenerationService', () => {
 
   it('记录成功调用：parsedOk=true、无 errorKind、带耗时与用量', async () => {
     await service.record({
-      stage: 'l3-content',
+      stage: 'l3-core-text',
       promptVersion: '2.0.0',
       prompt: 'p',
       rawResponse: '{"a":1}',
@@ -37,7 +37,7 @@ describe('AiGenerationService', () => {
 
     expect(repo.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        stage: 'l3-content',
+        stage: 'l3-core-text',
         promptVersion: '2.0.0',
         provider: 'deepseek',
         model: 'deepseek-v4-flash',
@@ -55,7 +55,7 @@ describe('AiGenerationService', () => {
 
   it('记录失败调用：parsedOk=false 且带 errorKind/detail', async () => {
     await service.record({
-      stage: 'l3-content',
+      stage: 'l3-core-text',
       promptVersion: '2.0.0',
       prompt: 'p',
       rawResponse: 'bad',

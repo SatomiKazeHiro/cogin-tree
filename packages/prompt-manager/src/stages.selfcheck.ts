@@ -1,5 +1,5 @@
 /**
- * 九个 stage 的契约自检（正例 + 反例）。
+ * 十一个 stage 的契约自检（正例 + 反例）。
  * 用法：cd packages/prompt-manager; ..\..\apps\api\node_modules\.bin\ts-node src/stages.selfcheck.ts
  */
 import { PromptManager, PromptStage } from './prompt-manager';
@@ -45,35 +45,58 @@ assert(
 );
 expectContractError('l2-nodes', '{"nodes":[{"description":"a"}]}', 'l2-nodes 缺 title 被拒');
 
-// ── stage 3：l3-content ───────────────────────────────────────────
-const l3Ok = JSON.stringify({
-  coreText: '# 标题\n正文内容'.padEnd(60, '。'),
+// ── stage 3a：l3-core-text ────────────────────────────────────────
+const coreOk = JSON.stringify({ coreText: '## 小节\n正文'.padEnd(80, '。') });
+const core = PromptManager.parse('l3-core-text', coreOk);
+assert(core.coreText.length >= 50, 'l3-core-text 正例');
+expectContractError('l3-core-text', '{"coreText":"太短"}', 'l3-core-text 过短被拒');
+expectContractError('l3-core-text', '{}', 'l3-core-text 缺字段被拒');
+
+// ── stage 3b：l3-code-examples ────────────────────────────────────
+const codesOk = JSON.stringify({
   codeExamples: [{ title: '示例', language: 'ts', code: 'const a = 1;' }],
+});
+assert(
+  PromptManager.parse('l3-code-examples', codesOk).codeExamples.length === 1,
+  'l3-code-examples 正例',
+);
+assert(
+  PromptManager.parse('l3-code-examples', '{"codeExamples":[]}').codeExamples.length === 0,
+  'l3-code-examples 允许空数组（纯概念主题）',
+);
+expectContractError(
+  'l3-code-examples',
+  JSON.stringify({ codeExamples: [{ title: 't', language: 'ts' }] }),
+  'l3-code-examples 缺 code 被拒',
+);
+expectContractError(
+  'l3-code-examples',
+  JSON.stringify({
+    codeExamples: Array.from({ length: 4 }, (_, i) => ({
+      title: `t${i}`,
+      language: 'ts',
+      code: 'c',
+    })),
+  }),
+  'l3-code-examples 超过 3 个被拒',
+);
+
+// ── stage 3c：l3-exercises ────────────────────────────────────────
+const exOk = JSON.stringify({
   exercises: [{ question: 'Q', options: ['a', 'b'], correctIndex: 1, explanation: 'E' }],
 });
-const l3 = PromptManager.parse('l3-content', l3Ok);
-assert(l3.exercises.length === 1, 'l3-content 正例');
-assert(l3.codeExamples[0].language === 'ts', 'l3-content codeExamples 形状正确');
-
+assert(PromptManager.parse('l3-exercises', exOk).exercises.length === 1, 'l3-exercises 正例');
+expectContractError('l3-exercises', '{"exercises":[]}', 'l3-exercises 空数组被拒');
 expectContractError(
-  'l3-content',
-  JSON.stringify({
-    coreText: 'x'.padEnd(60, '。'),
-    codeExamples: [],
-    exercises: [{ question: 'Q', options: ['a'], correctIndex: 0, explanation: 'E' }],
-  }),
-  'l3-content 单选题少于 2 个选项被拒',
+  'l3-exercises',
+  JSON.stringify({ exercises: [{ question: 'Q', options: ['a'], correctIndex: 0, explanation: 'E' }] }),
+  'l3-exercises 选项少于 2 个被拒',
 );
 expectContractError(
-  'l3-content',
-  JSON.stringify({
-    coreText: 'x'.padEnd(60, '。'),
-    codeExamples: [],
-    exercises: [{ question: 'Q', options: ['a', 'b'], correctIndex: 2, explanation: 'E' }],
-  }),
-  'l3-content correctIndex 越界被 invariants 拒（跨字段）',
+  'l3-exercises',
+  JSON.stringify({ exercises: [{ question: 'Q', options: ['a', 'b'], correctIndex: 2, explanation: 'E' }] }),
+  'l3-exercises correctIndex 越界被 invariants 拒（跨字段）',
 );
-expectContractError('l3-content', '{"coreText":"x"}', 'l3-content 缺 exercises 被拒');
 
 // ── stage 4：discover-new ─────────────────────────────────────────
 assert(
@@ -190,17 +213,29 @@ expectContractError(
 );
 
 // ── 格式段与 schema 同源：build 产出必须含 schema 里每个顶层字段名 ──
-const l3Prompt = PromptManager.build('l3-content', {
+const corePrompt = PromptManager.build('l3-core-text', {
+  skillTreeName: 'T',
   l1Title: 'L1',
   l2Title: 'L2',
-  skillTreeName: 'T',
 });
-assert(l3Prompt.includes('"coreText"'), 'l3-content 提示词含 coreText 字段说明');
-assert(l3Prompt.includes('"codeExamples"'), 'l3-content 提示词含 codeExamples 字段说明');
-assert(l3Prompt.includes('"exercises"'), 'l3-content 提示词含 exercises 字段说明');
-assert(
-  !l3Prompt.includes('"exercises": {\n  "type": "array"'), // 防御性：确认注入的是 schema 而非手写段
-  'l3-content 提示词格式段来自 schema（含 draft-07 结构）',
-);
+assert(corePrompt.includes('"coreText"'), 'l3-core-text 提示词含 coreText 字段说明');
+
+const exPrompt = PromptManager.build('l3-exercises', {
+  skillTreeName: 'T',
+  l1Title: 'L1',
+  l2Title: 'L2',
+  coreText: '核心内容',
+});
+assert(exPrompt.includes('"exercises"'), 'l3-exercises 提示词含 exercises 字段说明');
+assert(exPrompt.includes('核心内容'), 'l3-exercises 提示词带上了 coreText 作为上下文');
+
+const codesPrompt = PromptManager.build('l3-code-examples', {
+  skillTreeName: 'T',
+  l1Title: 'L1',
+  l2Title: 'L2',
+  coreText: '核心内容',
+});
+assert(codesPrompt.includes('"codeExamples"'), 'l3-code-examples 提示词含 codeExamples 字段说明');
+assert(codesPrompt.includes('核心内容'), 'l3-code-examples 提示词带上了 coreText 作为上下文');
 
 console.log('\nSELFCHECK OK');

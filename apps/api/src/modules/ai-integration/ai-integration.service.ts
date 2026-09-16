@@ -195,15 +195,25 @@ export class AiIntegrationService {
     return this.generate('l2-nodes', { l1Title, l1Description, skillTreeName }, ctx);
   }
 
-  async generateL3(
-    l1Title: string,
-    l2Title: string,
-    skillTreeName: string,
+  async generateL3CoreText(
+    input: { skillTreeName: string; l1Title: string; l2Title: string },
     ctx: AiCallContext = {},
   ) {
-    return this.generate('l3-content', { l1Title, l2Title, skillTreeName }, ctx, {
-      maxTokens: this.l3MaxTokens(),
-    });
+    return this.generate('l3-core-text', input, ctx, { maxTokens: this.l3MaxTokens() });
+  }
+
+  async generateL3CodeExamples(
+    input: { skillTreeName: string; l1Title: string; l2Title: string; coreText: string },
+    ctx: AiCallContext = {},
+  ) {
+    return this.generate('l3-code-examples', input, ctx, { maxTokens: this.l3MaxTokens() });
+  }
+
+  async generateL3Exercises(
+    input: { skillTreeName: string; l1Title: string; l2Title: string; coreText: string },
+    ctx: AiCallContext = {},
+  ) {
+    return this.generate('l3-exercises', input, ctx, { maxTokens: this.l3MaxTokens() });
   }
 
   async generateInterviewQA(

@@ -158,19 +158,14 @@ export class MockProvider implements IAIProvider {
       });
     }
 
-    // L3 prompts also mention L1/L2, so check the most specific marker first.
-    if (
-      prompt.includes('L3') ||
-      prompt.includes('三级') ||
-      prompt.includes('coreText') ||
-      prompt.includes('学习内容')
-    ) {
+    // L3 系列（阶段 4 起拆成三个独立 stage）的提示词都会提到 L1/L2，
+    // 因此必须先按「格式段里的 schema 字段名」判定，再回落到通用 L3 分支。
+    // 顺序敏感：codeExamples → exercises → coreText。
+    if (prompt.includes('codeExamples')) {
+      const l2Title = this.extractLine(prompt, 'L2 节点：') || '该主题';
       const skillTreeName = this.extractLine(prompt, '技能方向：') || '该技能方向';
-      const l1Title = this.extractLine(prompt, 'L1 节点：') || 'L1 节点';
-      const l2Title = this.extractLine(prompt, 'L2 节点：') || 'L2 节点';
 
       return JSON.stringify({
-        coreText: `${skillTreeName}下的「${l1Title}」包含「${l2Title}」这一重要主题。它解释了关键概念、使用场景和注意事项，帮助你建立系统理解。学习时应结合实际案例，先掌握原理再动手实践。`,
         codeExamples: [
           {
             title: `${l2Title}基础示例`,
@@ -178,6 +173,14 @@ export class MockProvider implements IAIProvider {
             code: `// ${l2Title} 核心用法示例\nconst example = {\n  name: '${l2Title}',\n  skill: '${skillTreeName}'\n};\nconsole.log(example);`,
           },
         ],
+      });
+    }
+
+    if (prompt.includes('"exercises"') || prompt.includes('单选题')) {
+      const skillTreeName = this.extractLine(prompt, '技能方向：') || '该技能方向';
+      const l2Title = this.extractLine(prompt, 'L2 节点：') || '该主题';
+
+      return JSON.stringify({
         exercises: [
           {
             question: `在${skillTreeName}中，${l2Title}的核心作用是什么？`,
@@ -192,6 +195,22 @@ export class MockProvider implements IAIProvider {
             explanation: '理解原理并结合实践是掌握技术主题的最佳方式。',
           },
         ],
+      });
+    }
+
+    // 兜底 L3 分支：只输出 coreText（若落到这里说明是 l3-core-text）
+    if (
+      prompt.includes('L3') ||
+      prompt.includes('三级') ||
+      prompt.includes('coreText') ||
+      prompt.includes('学习内容')
+    ) {
+      const skillTreeName = this.extractLine(prompt, '技能方向：') || '该技能方向';
+      const l1Title = this.extractLine(prompt, 'L1 节点：') || 'L1 节点';
+      const l2Title = this.extractLine(prompt, 'L2 节点：') || 'L2 节点';
+
+      return JSON.stringify({
+        coreText: `## ${l2Title} 概述\n\n${skillTreeName}下的「${l1Title}」包含「${l2Title}」这一重要主题。它解释了关键概念、使用场景和注意事项，帮助你建立系统理解。\n\n## 使用要点\n\n- 先掌握原理，再动手实践。\n- 结合实际案例理解适用边界。\n- 注意常见误区与性能影响。\n\n掌握这些内容后，可以继续学习代码示例与练习题，检验并巩固理解。`,
       });
     }
 

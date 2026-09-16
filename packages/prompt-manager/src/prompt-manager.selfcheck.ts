@@ -12,8 +12,11 @@ function assert(cond: boolean, label: string) {
   console.log(`PASS  ${label}`);
 }
 
-assert(PROMPT_STAGES.length === 9, `注册了 9 个 stage（实际 ${PROMPT_STAGES.length}）`);
+assert(PROMPT_STAGES.length === 11, `注册了 11 个 stage（实际 ${PROMPT_STAGES.length}）`);
 assert(PROMPT_STAGES.includes('knowledge-points'), '含 knowledge-points');
+assert(PROMPT_STAGES.includes('l3-core-text'), '含 l3-core-text');
+assert(PROMPT_STAGES.includes('l3-code-examples'), '含 l3-code-examples');
+assert(PROMPT_STAGES.includes('l3-exercises'), '含 l3-exercises');
 assert(PROMPT_STAGES.includes('recommendations'), '含 recommendations');
 
 const prompt = PromptManager.build('knowledge-points', { title: '前端工程化', type: 'ENTRY' });
