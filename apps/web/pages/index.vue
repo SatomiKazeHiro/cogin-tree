@@ -10,7 +10,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col items-center justify-center px-6">
+  <div class="flex h-full flex-col items-center justify-center px-6">
     <div class="w-full max-w-[560px] text-center">
       <h1 class="mb-6 font-anthropic-serif text-display font-[330] leading-display text-ink">
         技能树学习系统
