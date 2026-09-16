@@ -10,15 +10,17 @@
     fit-view-on-init
     :fit-view-options="{ padding: 0.15, minZoom: 0.6, maxZoom: 1 }"
     class="vue-flow-skill-tree"
+    @node-click="onNodeClick"
+    @pane-click="onPaneClick"
   >
     <template #node-flowNode="nodeProps">
       <FlowNode
         :id="nodeProps.id"
         :data="nodeProps.data"
-        :selected="nodeProps.selected"
         :highlighted="nodeProps.id === highlightedNodeId"
         @action="(...args) => emit('action', ...args)"
         @toggle-collapse="(...args) => emit('toggleCollapse', ...args)"
+        @focus="(id) => emit('selectNode', id)"
       />
     </template>
 
@@ -37,7 +39,7 @@
 
 <script setup lang="ts">
 import { VueFlow } from '@vue-flow/core';
-import type { GraphNode } from '@vue-flow/core';
+import type { GraphNode, NodeMouseEvent } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
 import { MiniMap } from '@vue-flow/minimap';
@@ -56,9 +58,21 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'action', nodeId: string, action: 'expand' | 'generate' | 'open'): void;
   (e: 'toggleCollapse', nodeId: string): void;
+  /** 画布上点击节点 → 回写页面聚焦状态（与点左侧目录等价） */
+  (e: 'selectNode', nodeId: string): void;
+  /** 点击画布空白 → 清掉聚焦（抽屉仍开着时由页面状态回落到该节点） */
+  (e: 'clearSelection'): void;
 }>();
 
 const vueFlow = ref<InstanceType<typeof VueFlow>>();
+
+function onNodeClick(payload: NodeMouseEvent) {
+  if (payload?.node?.id) emit('selectNode', payload.node.id);
+}
+
+function onPaneClick() {
+  emit('clearSelection');
+}
 
 const localNodes = computed<FlowNodeType[]>({
   get: () => props.nodes,

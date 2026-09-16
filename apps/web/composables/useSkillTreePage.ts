@@ -188,6 +188,20 @@ export function useSkillTreePage(treeId: string) {
     nextTick(() => fitView(l2Id));
   }
 
+  /**
+   * 画布上直接点击节点：与点击左侧目录等价 —— 只更新聚焦态，不移动视口、不打开抽屉。
+   * 聚焦态是**唯一**的高亮来源（画布不再使用 Vue Flow 自身的选中态），
+   * 因此不会出现「目录点了 A、画布点了 B」导致两个节点同时带虚线描边。
+   */
+  function onCanvasNodeClick(nodeId: string) {
+    activeDirectoryNodeId.value = nodeId;
+  }
+
+  /** 点击画布空白：清掉手动聚焦；抽屉仍开着时由 selectedNodeId 回落到抽屉所属节点 */
+  function onCanvasPaneClick() {
+    activeDirectoryNodeId.value = null;
+  }
+
   async function expandL1(l1Id: string) {
     setNodeLoading(l1Id, true);
     try {
@@ -332,6 +346,8 @@ export function useSkillTreePage(treeId: string) {
     toggleCollapse,
     onSelectL1,
     onSelectL2,
+    onCanvasNodeClick,
+    onCanvasPaneClick,
     handleStatusChange,
     ensureCoreText,
     generateExercises,

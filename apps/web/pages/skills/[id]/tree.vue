@@ -42,6 +42,8 @@
           :highlighted-node-id="selectedNodeId"
           @action="onNodeAction"
           @toggle-collapse="toggleCollapse"
+          @select-node="onCanvasNodeClick"
+          @clear-selection="onCanvasPaneClick"
         />
         <template #fallback>
           <div class="flex h-full items-center justify-center text-muted">
@@ -132,6 +134,8 @@ const {
   toggleCollapse,
   onSelectL1,
   onSelectL2,
+  onCanvasNodeClick,
+  onCanvasPaneClick,
   handleStatusChange,
   ensureCoreText,
   generateExercises,

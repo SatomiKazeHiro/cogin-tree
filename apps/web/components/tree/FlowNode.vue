@@ -57,7 +57,7 @@
           class="rounded-[9.6px] px-4 py-1.5 text-[13px] font-[430] transition-all disabled:opacity-50"
           :class="actionButtonClass"
           :disabled="data.loading"
-          @click.stop="selectThisNode(); emit('action', id, actionButton.type)"
+          @click.stop="emit('focus', id); emit('action', id, actionButton.type)"
         >
           <span v-if="data.loading">生成中…</span>
           <span v-else>{{ actionButton.label }}</span>
@@ -78,7 +78,7 @@
       type="button"
       class="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-border bg-surface text-muted shadow-sm transition-all hover:border-strong hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       :title="data.collapsed ? '展开子节点' : '收起子节点'"
-      @click.stop="selectThisNode(); emit('toggleCollapse', id)"
+      @click.stop="emit('focus', id); emit('toggleCollapse', id)"
     >
       <Plus v-if="data.collapsed" class="h-4 w-4" />
       <Minus v-else class="h-4 w-4" />
@@ -87,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { Handle, Position, useVueFlow } from '@vue-flow/core';
+import { Handle, Position } from '@vue-flow/core';
 import { Plus, Minus } from 'lucide-vue-next';
 import { NodeStatus, NodeLearningStatus } from '@skill/shared';
 import { getLearningStatusMeta } from '../../utils/learning-status';
@@ -96,30 +96,23 @@ import type { FlowNodeData } from '../../composables/useTreeLayout';
 const props = defineProps<{
   id: string;
   data: FlowNodeData;
-  selected?: boolean;
+  /**
+   * 是否处于「聚焦」态（虚线描边）。
+   *
+   * 唯一来源是页面状态（`selectedNodeId`）——**不再同时接受 Vue Flow 自己的选中态**：
+   * 那样会出现「左侧目录点了 A、画布上点了 B」时两个节点同时带虚线描边。
+   * 点击画布节点时通过 `focus` 事件回写页面状态，仍由这一个来源决定。
+   */
   highlighted?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'action', nodeId: string, action: 'expand' | 'generate' | 'open'): void;
   (e: 'toggleCollapse', nodeId: string): void;
+  (e: 'focus', nodeId: string): void;
 }>();
 
-const { findNode, addSelectedNodes, removeSelectedNodes, getSelectedNodes } = useVueFlow();
-
-function selectThisNode() {
-  const node = findNode(props.id);
-  if (!node) return;
-
-  // 单选：先取消其它选中节点，再选中当前节点
-  const others = getSelectedNodes.value.filter((n) => n.id !== props.id);
-  if (others.length > 0) {
-    removeSelectedNodes(others);
-  }
-  addSelectedNodes([node]);
-}
-
-const isOutlined = computed(() => props.selected || props.highlighted);
+const isOutlined = computed(() => !!props.highlighted);
 
 const level = computed(() => {
   if (props.data.type === 'root') return 0;
@@ -160,7 +153,7 @@ const actionButton = computed(() => {
 });
 
 const borderColorClass = computed(() => {
-  if (props.selected) {
+  if (props.highlighted) {
     return 'border-ink';
   }
   switch (props.data.status) {
