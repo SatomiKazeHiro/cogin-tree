@@ -5,6 +5,7 @@
 > **依据计划**：`docs/plans/2026-09-16-phase4-artifact-pipeline.md`
 > **依据设计**：`docs/specs/2026-09-16-ai-contract-and-dataflow-design.md`（第 4 节、第 6 节）
 > **提交范围**：`3949f85`（T1）→ `1bffd31`（T7 修复），7 个提交；T9 为本文档提交
+> **上线后补充**：`e92cd7d`（修复 2.5 节记录的并发缺陷）
 
 ---
 
@@ -16,8 +17,8 @@
 | 注册表自检 | `ts-node src/prompt-manager.selfcheck.ts` | **SELFCHECK OK**（10 条，11 个 stage） |
 | 11 个 stage 契约自检 | `ts-node src/stages.selfcheck.ts` | **SELFCHECK OK**（39 条，含三个新 stage 的正例/反例与跨字段不变量） |
 | 状态机单测 | `jest generation-task.service.spec.ts` | **6/6 通过**（SQL 文本断言 + 陈旧阈值 + 标记语义） |
-| 编排单测 | `jest artifact.service.spec.ts` | **7/7 通过**（幂等 / 前置依赖 / 失败标记 / 状态派生） |
-| 全量单测 | `jest --runInBand` | **16 suites / 82 tests 全绿**（阶段开始时 15 suites / 71 tests） |
+| 编排单测 | `jest artifact.service.spec.ts` | **8/8 通过**（幂等 / 前置依赖 / 失败标记 / 状态派生 / **并发等待**） |
+| 全量单测 | `jest --runInBand` | **16 suites / 83 tests 全绿**（阶段开始时 15 suites / 71 tests；含 2.5 节补的并发用例） |
 | 类型检查 | `apps/api` `tsc --noEmit` | exit 0 |
 | 前端类型检查 | `apps/web` `nuxt typecheck` | exit 0 |
 | 应用启动（DI） | `nest start` + 真实库 | 启动成功；本阶段 3 次改 DI，均单独验过（含路由表核对） |
@@ -26,6 +27,7 @@
 | **真实 AI 端到端** | 真实 DeepSeek + 真实库 | **12 / 12 通过**（见 2.2） |
 | **浏览器 UI 验证** | `nuxt dev` + playwright-cli | 分块渲染 / 失败重试 / 按需生成全部实测（见 2.3） |
 | 数据清理 | 删除全部验证用户 | 领域表残留 0，审计表留存 27 行且关联列已 SET NULL（见 2.4） |
+| **上线后缺陷回归** | 真实操作发现 → 单测复现 → 真实 AI 并发复现 | **已修复**（见 2.5；`e92cd7d`） |
 
 ---
 
@@ -105,6 +107,38 @@ ai_generations=27（其中关联列非空的 0 行）
 ```
 
 `generation_tasks` 随节点级联删除成立；审计表按设计留存且 `SET NULL` 生效。
+
+### 2.5 上线后由真实操作暴露的第二个缺陷（已修复，提交 `e92cd7d`）
+
+**用户操作路径**：点开一个 L2 → 在「概念」仍在生成时切到「练习题」tab。
+
+**现象**：`POST /nodes/:id/artifacts/L3_EXERCISES/generate` 返回 **500**，前端提示
+`Error: coreText 生成后仍不可用`；随后（coreText 落库后）该产物又能正常生成，但用户那一次点击被丢弃。
+
+**根因**：`ensureCoreText` 把「coreText 正由**另一个请求**生成中」当成了失败。
+`generateArtifact(L3_CORE_TEXT)` 因认领失败而立即返回 —— 这是**正常的并发状态**（前端设计本身就鼓励
+coreText 阻塞、用户可自由切 tab），但旧实现紧接着回读 `node_contents`，此时对方尚未落库 → 抛 500。
+连带的两个次生问题：① 用户意图被丢弃（对方生成成功后用户仍看到报错）；② 状态机被写入一条**假的 FAILED**
+（内容根本没生成失败，只是还没轮到读），`last_error` 具有误导性。
+
+**修复**：`ensureCoreText` 改为**有界等待 + 顺带重试认领**的轮询循环
+（`CORE_TEXT_WAIT_MS = 60s`、`CORE_TEXT_POLL_MS = 1s`）：
+
+- 每轮先读内容；没有则尝试认领并生成
+- 认领失败（他人正在生成）→ 等一轮再看，而不是抛错
+- 对方若最终失败并把任务标记 `FAILED`，下一轮就能接管生成（`FAILED` 可重认领）
+- 只有超过总预算才显式失败，错误信息改为「等待 coreText 生成超时（60s），请稍后重试」
+
+**验证**（单测 + 真实 AI 端到端各一条）：
+
+| 手段 | 结果 |
+|---|---|
+| 单测（先红后绿） | 新增用例「coreText 正由他人生成时不失败」：修复前复现 `InternalServerErrorException: coreText 生成后仍不可用`，修复后断言 `markFailed` **未被调用**、练习题正常生成 |
+| 全量回归 | 16 suites / **83 tests 全绿**（较 2.1 多 1 条即本用例） |
+| 真实 AI 并发复现 | 同进程用 `HttpClient` 先发 coreText 请求、**900ms 后**（coreText 仍在飞行中）发练习题请求 → 两条均 **201**；练习题请求耗时 22.2s（等待 coreText 的 13.3s + 自身 8.6s）；`generation_tasks` 两行均 `READY / attempts=1 / last_error=null`；全库 FAILED 任务数 0 |
+
+> 该次复现的审计顺带证明了**契约层重试**在真实模型上生效：coreText 第一次返回 `parsed_ok=false`（7.3s），
+> 服务自动带 issues 以 0.3 温度重试，第二次通过（6.9s）—— 这也是等待预算必须覆盖「一次生成 + 一次重试」的原因。
 
 ---
 
