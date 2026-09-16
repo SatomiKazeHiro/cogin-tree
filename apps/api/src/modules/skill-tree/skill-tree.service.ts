@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { TreeType, NodeLevel, LearningStatus } from '@skill/shared';
 import { SkillTree } from './entities/skill-tree.entity';
 import { TreeNode } from './entities/tree-node.entity';
@@ -19,57 +19,74 @@ export class SkillTreeService {
     private recordRepo: Repository<LearningRecord>,
     private aiService: AiIntegrationService,
     private treeAccess: TreeAccessService,
+    private dataSource: DataSource,
   ) {}
 
+  /**
+   * 先算后落库：
+   * ① AI 生成 L1 大纲在事务外（此时树还没建，只带 userId 做审计）
+   * ② 校验通过后用一个事务写「树 + L1 节点 + 学习记录」
+   *
+   * 由此彻底消除「树行已落库、AI 失败、节点与学习记录缺失」的孤儿树（阶段 1 实测到 6 棵）。
+   */
   async create(
     data: { name: string; description?: string; type: TreeType; selectedPoints?: string[]; keywords?: string },
     userId: string,
   ): Promise<SkillTree> {
-    const tree = this.treeRepo.create({
-      name: data.name,
-      description: data.description,
-      type: data.type,
-      keywords: data.keywords,
-      status: 'ACTIVE',
-      ownerId: userId,
-    });
-    const saved = await this.treeRepo.save(tree);
-
-    // Generate L1 nodes via AI
-    // 此时树已落库，故能带上 treeId；T7 会改为先算后落库（届时 treeId 尚不存在，只带 userId）
-    const aiCtx = { userId, treeId: saved.id };
+    // ① 先算
     const l1Result = data.selectedPoints?.length
       ? await this.aiService.generateL1FromPoints(
-          saved.name,
-          saved.description,
-          saved.type,
+          data.name,
+          data.description,
+          data.type,
           data.selectedPoints,
-          aiCtx,
+          { userId },
         )
-      : await this.aiService.generateL1(saved.name, saved.description, saved.type, aiCtx);
+      : await this.aiService.generateL1(data.name, data.description, data.type, { userId });
 
-    const nodes = (l1Result.nodes || []).map((node, index) =>
-      this.nodeRepo.create({
-        treeId: saved.id,
-        level: NodeLevel.L1,
-        title: node.title,
-        description: node.description,
-        sortOrder: index,
-      }),
-    );
-    if (nodes.length > 0) {
-      await this.nodeRepo.save(nodes);
-    }
+    // ② 后落库（单事务）
+    const treeId = await this.dataSource.transaction(async (manager) => {
+      const treeRepo = manager.getRepository(SkillTree);
+      const nodeRepo = manager.getRepository(TreeNode);
+      const recordRepo = manager.getRepository(LearningRecord);
 
-    // Link tree to the creator via a learning record
-    const record = this.recordRepo.create({
-      userId,
-      skillTreeId: saved.id,
-      status: LearningStatus.IN_PROGRESS,
+      const tree = await treeRepo.save(
+        treeRepo.create({
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          keywords: data.keywords,
+          status: 'ACTIVE',
+          ownerId: userId,
+        }),
+      );
+
+      if (l1Result.nodes.length > 0) {
+        await nodeRepo.save(
+          l1Result.nodes.map((node, index) =>
+            nodeRepo.create({
+              treeId: tree.id,
+              level: NodeLevel.L1,
+              title: node.title,
+              description: node.description,
+              sortOrder: index,
+            }),
+          ),
+        );
+      }
+
+      await recordRepo.save(
+        recordRepo.create({
+          userId,
+          skillTreeId: tree.id,
+          status: LearningStatus.IN_PROGRESS,
+        }),
+      );
+
+      return tree.id;
     });
-    await this.recordRepo.save(record);
 
-    return this.findById(saved.id, userId);
+    return this.findById(treeId, userId);
   }
 
   async generateKnowledgePoints(
