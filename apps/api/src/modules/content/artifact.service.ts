@@ -1,0 +1,238 @@
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
+import {
+  ArtifactKind,
+  ArtifactStatusView,
+  GenerationTaskStatus,
+  NodeArtifactsResponse,
+} from '@skill/shared';
+import { PromptManager, PromptStage } from '@skill/prompt-manager';
+import { NodeContent } from './entities/node-content.entity';
+import { CodeExample } from './entities/code-example.entity';
+import { Exercise } from './entities/exercise.entity';
+import { TreeNode } from '../skill-tree/entities/tree-node.entity';
+import { SkillTree } from '../skill-tree/entities/skill-tree.entity';
+import { AiIntegrationService } from '../ai-integration/ai-integration.service';
+import { TreeAccessService } from '../tree-access/tree-access.service';
+import { GenerationTaskService } from './generation-task.service';
+
+/**
+ * 产物编排：认领 → 前置依赖 → 调 AI → 单事务落库 → 标记状态。
+ *
+ * 职责边界：
+ * - 状态机（认领/标记）归 `GenerationTaskService`
+ * - 内容读写与 AI 调用归本服务
+ * 因此「谁有权生成」由数据库裁决，本服务只关心「生成什么、怎么落库」。
+ */
+@Injectable()
+export class ArtifactService {
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly tasks: GenerationTaskService,
+    private readonly ai: AiIntegrationService,
+    private readonly treeAccess: TreeAccessService,
+    @InjectRepository(TreeNode)
+    private readonly nodeRepo: Repository<TreeNode>,
+    @InjectRepository(SkillTree)
+    private readonly treeRepo: Repository<SkillTree>,
+    @InjectRepository(NodeContent)
+    private readonly contentRepo: Repository<NodeContent>,
+  ) {}
+
+  private async loadContext(nodeId: string, userId: string) {
+    const node = await this.treeAccess.assertNodeOwner(nodeId, userId);
+    const [l1Node, tree] = await Promise.all([
+      this.nodeRepo.findOne({ where: { id: node.parentId } }),
+      this.treeRepo.findOne({ where: { id: node.treeId } }),
+    ]);
+    return { node, skillTreeName: tree?.name || '', l1Title: l1Node?.title || '' };
+  }
+
+  private async loadContent(nodeId: string): Promise<NodeContent | null> {
+    return this.contentRepo.findOne({
+      where: { nodeId },
+      relations: ['exercises', 'codeExamples'],
+      order: { exercises: { sortOrder: 'ASC' }, codeExamples: { sortOrder: 'ASC' } },
+    });
+  }
+
+  /** 确保 coreText 就绪（供 codeExamples / exercises 作为前置依赖调用） */
+  private async ensureCoreText(nodeId: string, userId: string): Promise<string> {
+    const existing = await this.loadContent(nodeId);
+    if (existing?.coreText) return existing.coreText;
+
+    await this.generateArtifact(nodeId, userId, ArtifactKind.L3_CORE_TEXT);
+
+    const after = await this.loadContent(nodeId);
+    if (!after?.coreText) {
+      throw new InternalServerErrorException('coreText 生成后仍不可用');
+    }
+    return after.coreText;
+  }
+
+  /**
+   * 生成某一类产物。
+   *
+   * 幂等性来自 `tasks.claim`：已 READY 或他人生成中（未超时）时拿不到认领，
+   * 直接返回当前状态，绝不重复调 AI。
+   */
+  async generateArtifact(
+    nodeId: string,
+    userId: string,
+    kind: ArtifactKind,
+  ): Promise<NodeArtifactsResponse> {
+    const { node, skillTreeName, l1Title } = await this.loadContext(nodeId, userId);
+    const aiCtx = { userId, treeId: node.treeId, nodeId };
+
+    const claimed = await this.tasks.claim(nodeId, kind);
+    if (!claimed) {
+      // 已 READY 或他人正在生成：幂等返回当前状态，绝不重复调 AI
+      return this.getArtifacts(nodeId, userId);
+    }
+
+    try {
+      if (kind === ArtifactKind.L3_CORE_TEXT) {
+        const result = await this.ai.generateL3CoreText(
+          { skillTreeName, l1Title, l2Title: node.title },
+          aiCtx,
+        );
+        await this.dataSource.transaction(async (manager) => {
+          const repo = manager.getRepository(NodeContent);
+          const existing = await repo.findOne({ where: { nodeId } });
+          if (existing) {
+            await repo.update(
+              { nodeId },
+              { coreText: result.coreText, version: existing.version + 1 },
+            );
+          } else {
+            await repo.save(repo.create({ nodeId, coreText: result.coreText, version: 1 }));
+          }
+        });
+      } else {
+        // 前置依赖：示例与练习题都以 coreText 为依据
+        const coreText = await this.ensureCoreText(nodeId, userId);
+
+        if (kind === ArtifactKind.L3_CODE_EXAMPLES) {
+          const result = await this.ai.generateL3CodeExamples(
+            { skillTreeName, l1Title, l2Title: node.title, coreText },
+            aiCtx,
+          );
+          await this.dataSource.transaction(async (manager) => {
+            const contentRepo = manager.getRepository(NodeContent);
+            const codeRepo = manager.getRepository(CodeExample);
+            const content = await contentRepo.findOne({ where: { nodeId } });
+            if (!content) {
+              throw new InternalServerErrorException('缺少 node_contents，无法写入代码示例');
+            }
+            // 先删后写：重新生成时不留旧示例
+            await codeRepo.delete({ nodeContentId: content.id });
+            if (result.codeExamples.length > 0) {
+              await codeRepo.save(
+                result.codeExamples.map((item, index) =>
+                  codeRepo.create({
+                    nodeContentId: content.id,
+                    title: item.title,
+                    language: item.language,
+                    code: item.code,
+                    sortOrder: index,
+                  }),
+                ),
+              );
+            }
+          });
+        } else {
+          const result = await this.ai.generateL3Exercises(
+            { skillTreeName, l1Title, l2Title: node.title, coreText },
+            aiCtx,
+          );
+          await this.dataSource.transaction(async (manager) => {
+            const contentRepo = manager.getRepository(NodeContent);
+            const exerciseRepo = manager.getRepository(Exercise);
+            const content = await contentRepo.findOne({ where: { nodeId } });
+            if (!content) {
+              throw new InternalServerErrorException('缺少 node_contents，无法写入练习题');
+            }
+            await exerciseRepo.delete({ nodeContentId: content.id });
+            await exerciseRepo.save(
+              result.exercises.map((ex, index) =>
+                exerciseRepo.create({
+                  nodeContentId: content.id,
+                  question: ex.question,
+                  options: ex.options,
+                  correctIndex: ex.correctIndex,
+                  explanation: ex.explanation,
+                  sortOrder: index,
+                }),
+              ),
+            );
+          });
+        }
+      }
+
+      await this.tasks.markReady(nodeId, kind, {
+        promptVersion: PromptManager.versionOf(this.stageOf(kind)),
+      });
+      return this.getArtifacts(nodeId, userId);
+    } catch (err) {
+      await this.tasks.markFailed(nodeId, kind, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  }
+
+  /** 三类产物的状态 + 已就绪内容 */
+  async getArtifacts(nodeId: string, userId: string): Promise<NodeArtifactsResponse> {
+    await this.treeAccess.assertNodeOwner(nodeId, userId);
+    const [tasks, content] = await Promise.all([
+      this.tasks.findForNode(nodeId),
+      this.loadContent(nodeId),
+    ]);
+
+    // 兼容「无 task 行但内容已存在」（阶段 3 的历史数据、直写数据库）：按 READY 呈现
+    const viewOf = (kind: ArtifactKind, hasContent: boolean): ArtifactStatusView => {
+      const task = tasks.find((t) => t.artifactKind === kind);
+      return {
+        status:
+          task?.status ??
+          (hasContent ? GenerationTaskStatus.READY : GenerationTaskStatus.PENDING),
+        attempts: task?.attempts ?? 0,
+        lastError: task?.lastError ?? null,
+      };
+    };
+
+    return {
+      coreText: {
+        ...viewOf(ArtifactKind.L3_CORE_TEXT, !!content?.coreText),
+        text: content?.coreText ?? null,
+      },
+      codeExamples: {
+        ...viewOf(ArtifactKind.L3_CODE_EXAMPLES, (content?.codeExamples?.length ?? 0) > 0),
+        items: (content?.codeExamples ?? []).map((c) => ({
+          title: c.title,
+          language: c.language,
+          code: c.code,
+        })),
+      },
+      exercises: {
+        ...viewOf(ArtifactKind.L3_EXERCISES, (content?.exercises?.length ?? 0) > 0),
+        items: (content?.exercises ?? []).map((e) => ({
+          question: e.question,
+          options: e.options,
+          correctIndex: e.correctIndex,
+          explanation: e.explanation,
+        })),
+      },
+    };
+  }
+
+  private stageOf(kind: ArtifactKind): PromptStage {
+    switch (kind) {
+      case ArtifactKind.L3_CORE_TEXT:
+        return 'l3-core-text';
+      case ArtifactKind.L3_CODE_EXAMPLES:
+        return 'l3-code-examples';
+      default:
+        return 'l3-exercises';
+    }
+  }
+}

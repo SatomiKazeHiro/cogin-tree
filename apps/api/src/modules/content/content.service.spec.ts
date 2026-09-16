@@ -1,20 +1,18 @@
+import { NotFoundException } from '@nestjs/common';
 import { ContentService } from './content.service';
-import { NodeContent } from './entities/node-content.entity';
-import { NodeLevel } from '@skill/shared';
+import { ArtifactKind, NodeLevel } from '@skill/shared';
 
 /**
- * 本 spec 覆盖「归属校验 + 短路行为」；
- * 写入路径（单事务）与「AI 失败不开事务」的不变量在 content.service.transaction.spec.ts。
+ * 本 spec 覆盖「归属校验 + 委托/短路行为」。
+ *
+ * 生成编排（认领幂等、coreText 前置、单事务落库、失败标记）已移入 `ArtifactService`，
+ * 由 `artifact.service.spec.ts` 覆盖；状态机由 `generation-task.service.spec.ts` 覆盖。
  */
 describe('ContentService（归属与短路）', () => {
   let service: ContentService;
   let contentRepo: { findOne: jest.Mock; update: jest.Mock };
-  let nodeRepo: { findOne: jest.Mock };
-  let treeRepo: { findOne: jest.Mock };
-  let aiService: { generateL3CoreText: jest.Mock };
-  let treeAccess: { assertNodeOwner: jest.Mock; assertTreeOwner: jest.Mock };
-  let manager: { getRepository: jest.Mock };
-  let dataSource: { transaction: jest.Mock };
+  let artifactService: { generateArtifact: jest.Mock };
+  let treeAccess: { assertNodeOwner: jest.Mock };
 
   const l2Node = {
     id: 'node-1',
@@ -27,43 +25,16 @@ describe('ContentService（归属与短路）', () => {
 
   beforeEach(() => {
     contentRepo = { findOne: jest.fn(async () => null), update: jest.fn() };
-    // assertNodeOwner 已返回节点，故 nodeRepo 只需再查一次 L1 父节点
-    nodeRepo = { findOne: jest.fn(async () => ({ id: 'l1-1', title: 'L1 领域' })) };
-    treeRepo = { findOne: jest.fn(async () => ({ id: 'tree-1', name: '前端工程化' })) };
-    aiService = {
-      generateL3CoreText: jest.fn(async () => ({ coreText: '正文'.padEnd(60, '。') })),
-    };
-    treeAccess = {
-      assertNodeOwner: jest.fn(async () => l2Node),
-      assertTreeOwner: jest.fn(),
-    };
+    artifactService = { generateArtifact: jest.fn(async () => undefined) };
+    treeAccess = { assertNodeOwner: jest.fn(async () => l2Node) };
 
-    manager = {
-      getRepository: jest.fn((entity: unknown) => {
-        if (entity === NodeContent) {
-          return { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 'c1' })) };
-        }
-        throw new Error('unexpected entity');
-      }),
-    };
-    dataSource = {
-      transaction: jest.fn(async (cb: (m: unknown) => Promise<unknown>) => cb(manager)),
-    };
-
-    service = new ContentService(
-      contentRepo as never,
-      nodeRepo as never,
-      treeRepo as never,
-      aiService as never,
-      treeAccess as never,
-      dataSource as never,
-    );
+    service = new ContentService(contentRepo as never, artifactService as never, treeAccess as never);
   });
 
-  it('生成前先校验归属', async () => {
-    await service.generateContent('node-1', 'u1');
+  it('生成时的归属校验由 ArtifactService 完成，异常原样上抛', async () => {
+    artifactService.generateArtifact.mockRejectedValue(new NotFoundException('not found'));
 
-    expect(treeAccess.assertNodeOwner).toHaveBeenCalledWith('node-1', 'u1');
+    await expect(service.generateContent('node-1', 'u1')).rejects.toThrow(NotFoundException);
   });
 
   it('读取前先校验归属', async () => {
@@ -88,13 +59,27 @@ describe('ContentService（归属与短路）', () => {
     expect(contentRepo.update).toHaveBeenCalledWith({ nodeId: 'node-1' }, { coreText: '新正文' });
   });
 
-  it('已有内容时直接返回：不调 AI、不开事务（避免重复生成与浪费 token）', async () => {
+  it('已有内容时直接返回：不委托生成（避免覆盖历史内容与浪费 token）', async () => {
     contentRepo.findOne.mockResolvedValue({ id: 'c1', nodeId: 'node-1', coreText: '已有' });
 
     const result = await service.generateContent('node-1', 'u1');
 
     expect(result).toMatchObject({ id: 'c1', coreText: '已有' });
-    expect(aiService.generateL3CoreText).not.toHaveBeenCalled();
-    expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(artifactService.generateArtifact).not.toHaveBeenCalled();
+  });
+
+  it('无内容时委托 ArtifactService 生成 coreText，并返回生成后的内容', async () => {
+    contentRepo.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'c1', nodeId: 'node-1', coreText: '新生成' });
+
+    const result = await service.generateContent('node-1', 'u1');
+
+    expect(artifactService.generateArtifact).toHaveBeenCalledWith(
+      'node-1',
+      'u1',
+      ArtifactKind.L3_CORE_TEXT,
+    );
+    expect(result).toMatchObject({ id: 'c1', coreText: '新生成' });
   });
 });
