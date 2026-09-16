@@ -1,5 +1,6 @@
-import { NodeLearningStatus, TreeType } from '@skill/shared';
-import type { FlowTreeNode, FlowContent, FlowNode, FlowEdge } from './useTreeLayout';
+import { ArtifactKind, GenerationTaskStatus, NodeLearningStatus, TreeType } from '@skill/shared';
+import type { NodeArtifactsResponse } from '@skill/shared';
+import type { FlowTreeNode, FlowNode, FlowEdge } from './useTreeLayout';
 
 export interface SkillTreeDetail {
   id: string;
@@ -16,7 +17,7 @@ export function useSkillTreePage(treeId: string) {
 
   const tree = ref<SkillTreeDetail | null>(null);
   const childrenByL1 = ref<Record<string, FlowTreeNode[]>>({});
-  const contents = ref<Record<string, FlowContent>>({});
+  const artifactsByNodeId = ref<Record<string, NodeArtifactsResponse>>({});
   const learningStatusByNodeId = ref<Record<string, NodeLearningStatus>>({});
 
   const selectedL2Id = ref<string | null>(null);
@@ -51,10 +52,35 @@ export function useSkillTreePage(treeId: string) {
     return node?.title || '';
   });
 
-  const selectedL2Content = computed(() => {
+  const selectedArtifacts = computed(() => {
     if (!selectedL2Id.value) return null;
-    return contents.value[selectedL2Id.value] || null;
+    return artifactsByNodeId.value[selectedL2Id.value] ?? null;
   });
+
+  /** 图上「分析 / 详情」按钮的依据：coreText 就绪才算有内容 */
+  const contentReadyByNodeId = computed<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      Object.entries(artifactsByNodeId.value).map(([id, view]) => [
+        id,
+        view.coreText.status === GenerationTaskStatus.READY && !!view.coreText.text,
+      ]),
+    ),
+  );
+
+  function storeArtifacts(nodeId: string, view: NodeArtifactsResponse) {
+    artifactsByNodeId.value = { ...artifactsByNodeId.value, [nodeId]: view };
+  }
+
+  async function loadArtifacts(nodeId: string): Promise<NodeArtifactsResponse | null> {
+    try {
+      const view = await api<NodeArtifactsResponse>(`/nodes/${nodeId}/artifacts`);
+      storeArtifacts(nodeId, view);
+      return view;
+    } catch (err) {
+      console.error('[useSkillTreePage] loadArtifacts failed', err);
+      return null;
+    }
+  }
 
   async function loadTreeData() {
     const data = await api<SkillTreeDetail>(`/skill-trees/${treeId}`);
@@ -72,32 +98,12 @@ export function useSkillTreePage(treeId: string) {
     childrenByL1.value = groups;
 
     if (l2Ids.length > 0) {
-      await loadExistingContents(l2Ids);
+      // 一次性拉取每个 L2 的产物状态，用于决定节点上显示「分析」还是「详情」
+      await Promise.all(l2Ids.map((id) => loadArtifacts(id)));
     }
 
     await loadLearningProgress();
     rebuildGraph();
-  }
-
-  async function loadExistingContents(l2Ids: string[]) {
-    const results = await Promise.all(
-      l2Ids.map(async (id) => {
-        try {
-          const content = await api<FlowContent | null>(`/nodes/${id}/content`);
-          return { id, content };
-        } catch {
-          return { id, content: null };
-        }
-      }),
-    );
-
-    const newContents: Record<string, FlowContent> = {};
-    for (const { id, content } of results) {
-      if (content) {
-        newContents[id] = content;
-      }
-    }
-    contents.value = newContents;
   }
 
   async function loadLearningProgress() {
@@ -117,7 +123,7 @@ export function useSkillTreePage(treeId: string) {
       tree.value,
       tree.value.nodes,
       childrenByL1.value,
-      contents.value,
+      contentReadyByNodeId.value,
       {
         collapsedL1Ids: collapsedL1Ids.value,
         loadingNodeId: loadingNodeId.value,
@@ -140,9 +146,12 @@ export function useSkillTreePage(treeId: string) {
       if (action === 'expand') {
         await expandL1(nodeId);
       } else if (action === 'generate') {
-        await generateContent(nodeId);
+        // 「分析」：打开抽屉并确保 coreText 就绪
+        selectedL2Id.value = nodeId;
+        await ensureCoreText(nodeId);
       } else if (action === 'open') {
         selectedL2Id.value = nodeId;
+        await ensureCoreText(nodeId);
       }
     } catch (err) {
       console.error('[useSkillTreePage] onNodeAction failed', err);
@@ -203,18 +212,84 @@ export function useSkillTreePage(treeId: string) {
     }
   }
 
-  async function generateContent(l2Id: string) {
-    setNodeLoading(l2Id, true);
-    selectedL2Id.value = l2Id;
+  /**
+   * 打开 L2 抽屉：拉状态 → 未就绪则生成 coreText（阻塞）→ ready 后后台预取代码示例。
+   * 练习题不预取，等用户切到该 tab 时再按需生成（见 generateExercises）。
+   */
+  async function ensureCoreText(nodeId: string) {
+    const view = await loadArtifacts(nodeId);
+    if (!view) return;
+
+    if (
+      view.coreText.status === GenerationTaskStatus.READY &&
+      !!view.coreText.text
+    ) {
+      prefetchCodeExamples(nodeId);
+      return;
+    }
+
+    setNodeLoading(nodeId, true);
     try {
-      const content = await api<FlowContent>(`/nodes/${l2Id}/content`, {
-        method: 'POST',
-      });
-      contents.value = { ...contents.value, [l2Id]: content };
-      toast.success('分析完成，学习内容已生成');
+      const next = await api<NodeArtifactsResponse>(
+        `/nodes/${nodeId}/artifacts/${ArtifactKind.L3_CORE_TEXT}/generate`,
+        { method: 'POST' },
+      );
+      storeArtifacts(nodeId, next);
       rebuildGraph();
+      toast.success('学习内容已生成');
+      prefetchCodeExamples(nodeId);
+    } catch (err) {
+      console.error('[useSkillTreePage] ensureCoreText failed', err);
+      toast.error(err instanceof Error ? err.message : '核心内容生成失败');
     } finally {
-      setNodeLoading(l2Id, false);
+      setNodeLoading(nodeId, false);
+    }
+  }
+
+  /** 后台预取代码示例：不阻塞、失败静默（用户切到该 tab 时还能手动重试） */
+  function prefetchCodeExamples(nodeId: string) {
+    const current = artifactsByNodeId.value[nodeId];
+    if (current && current.codeExamples.status !== GenerationTaskStatus.PENDING) {
+      // 已就绪 / 生成中 / 失败待重试：不重复触发
+      return;
+    }
+    void api<NodeArtifactsResponse>(
+      `/nodes/${nodeId}/artifacts/${ArtifactKind.L3_CODE_EXAMPLES}/generate`,
+      { method: 'POST' },
+    )
+      .then((next) => {
+        storeArtifacts(nodeId, next);
+        rebuildGraph();
+      })
+      .catch(() => undefined);
+  }
+
+  /** 练习题按需生成（用户切到「练习题」tab 时触发） */
+  async function generateExercises(nodeId: string) {
+    try {
+      const next = await api<NodeArtifactsResponse>(
+        `/nodes/${nodeId}/artifacts/${ArtifactKind.L3_EXERCISES}/generate`,
+        { method: 'POST' },
+      );
+      storeArtifacts(nodeId, next);
+    } catch (err) {
+      console.error('[useSkillTreePage] generateExercises failed', err);
+      toast.error(err instanceof Error ? err.message : '练习题生成失败');
+    }
+  }
+
+  /** 失败后重试某一类产物 */
+  async function retryArtifact(nodeId: string, kind: ArtifactKind) {
+    try {
+      const next = await api<NodeArtifactsResponse>(
+        `/nodes/${nodeId}/artifacts/${kind}/generate`,
+        { method: 'POST' },
+      );
+      storeArtifacts(nodeId, next);
+      toast.success('已重新生成');
+    } catch (err) {
+      console.error('[useSkillTreePage] retryArtifact failed', err);
+      toast.error(err instanceof Error ? err.message : '生成失败');
     }
   }
 
@@ -250,12 +325,16 @@ export function useSkillTreePage(treeId: string) {
     learningStatusByNodeId,
     selectedNodeId,
     selectedL2Title,
-    selectedL2Content,
+    selectedArtifacts,
+    artifactsByNodeId,
     loadTreeData,
     onNodeAction,
     toggleCollapse,
     onSelectL1,
     onSelectL2,
     handleStatusChange,
+    ensureCoreText,
+    generateExercises,
+    retryArtifact,
   };
 }

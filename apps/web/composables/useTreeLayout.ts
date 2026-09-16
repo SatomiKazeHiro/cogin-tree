@@ -77,7 +77,7 @@ export function useTreeLayout() {
     tree: FlowSkillTree,
     nodes: FlowTreeNode[],
     childrenByL1: Record<string, FlowTreeNode[]>,
-    contents: Record<string, FlowContent>,
+    contentReadyByNodeId: Record<string, boolean>,
     options?: {
       collapsedL1Ids?: Set<string>;
       loadingNodeId?: string | null;
@@ -143,7 +143,7 @@ export function useTreeLayout() {
             label: l2.title,
             description: l2.description,
             status: l2.status,
-            hasContent: !!contents[l2.id],
+            hasContent: !!contentReadyByNodeId[l2.id],
             sortOrder: l2.sortOrder,
             loading: l2.id === loadingNodeId,
           },

@@ -65,12 +65,14 @@
         >
           <TreeL2ContentPanel
             :title="selectedL2Title"
-            :content="selectedL2Content || { coreText: '' }"
+            :artifacts="selectedArtifacts"
             :loading="loadingNodeId === selectedL2Id"
             :node-id="selectedL2Id"
             :learning-status="selectedL2Id ? learningStatusByNodeId[selectedL2Id] : undefined"
             @close="selectedL2Id = null"
             @status-change="handleStatusChange"
+            @retry-artifact="retryArtifact"
+            @request-exercises="generateExercises"
           />
         </div>
       </Transition>
@@ -124,13 +126,16 @@ const {
   learningStatusByNodeId,
   selectedNodeId,
   selectedL2Title,
-  selectedL2Content,
+  selectedArtifacts,
   loadTreeData,
   onNodeAction,
   toggleCollapse,
   onSelectL1,
   onSelectL2,
   handleStatusChange,
+  ensureCoreText,
+  generateExercises,
+  retryArtifact,
 } = useSkillTreePage(route.params.id as string);
 
 function noop() {}

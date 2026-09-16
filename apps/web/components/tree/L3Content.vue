@@ -3,16 +3,24 @@
     <!-- Concept -->
     <section v-if="activeTab === 'concept' || !activeTab">
       <article
+        v-if="coreReady"
         class="prose prose-skill max-w-none"
         v-html="renderedCoreText"
+      />
+      <TreeArtifactStateHint
+        v-else
+        :status="artifacts.coreText.status"
+        :last-error="artifacts.coreText.lastError"
+        pending-text="正在生成核心内容…"
+        @retry="emit('retry', ArtifactKind.L3_CORE_TEXT)"
       />
     </section>
 
     <!-- Code examples -->
     <section v-if="(activeTab === 'code' || !activeTab)">
-      <div v-if="content.codeExamples?.length" class="space-y-6">
+      <div v-if="artifacts.codeExamples.items.length" class="space-y-6">
         <article
-          v-for="(example, index) in content.codeExamples"
+          v-for="(example, index) in artifacts.codeExamples.items"
           :key="index"
           class="overflow-hidden rounded-[12px] border border-border bg-code-bg"
         >
@@ -39,21 +47,36 @@
         </article>
       </div>
 
-      <EmptyState v-else title="暂无代码示例" description="当前知识点尚未生成代码演示。" />
+      <TreeArtifactStateHint
+        v-else
+        :status="artifacts.codeExamples.status"
+        :last-error="artifacts.codeExamples.lastError"
+        pending-text="正在生成代码示例…"
+        empty-title="该主题无代码示例"
+        empty-description="纯概念性主题不提供代码演示。"
+        @retry="emit('retry', ArtifactKind.L3_CODE_EXAMPLES)"
+      />
     </section>
 
     <!-- Exercises -->
     <section v-if="(activeTab === 'exercise' || !activeTab)">
-      <div v-if="content.exercises?.length" class="space-y-5">
+      <div v-if="artifacts.exercises.items.length" class="space-y-5">
         <TreeExerciseCard
-          v-for="(exercise, index) in content.exercises"
+          v-for="(exercise, index) in artifacts.exercises.items"
           :key="index"
           :index="index"
           :exercise="exercise"
         />
       </div>
 
-      <EmptyState v-else title="暂无练习题" description="当前知识点尚未生成练习题。" />
+      <TreeArtifactStateHint
+        v-else
+        :status="artifacts.exercises.status"
+        :last-error="artifacts.exercises.lastError"
+        pending-text="正在出题…"
+        empty-title="暂无练习题"
+        @retry="emit('retry', ArtifactKind.L3_EXERCISES)"
+      />
     </section>
   </div>
 </template>
@@ -63,14 +86,26 @@ import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
 import { Copy, Check } from 'lucide-vue-next';
-import type { FlowContentData } from '../../composables/useTreeLayout';
+import { ArtifactKind, GenerationTaskStatus } from '@skill/shared';
+import type { NodeArtifactsResponse } from '@skill/shared';
 
 const props = defineProps<{
-  content: FlowContentData;
+  artifacts: NodeArtifactsResponse;
   activeTab?: 'concept' | 'code' | 'exercise';
 }>();
 
+const emit = defineEmits<{
+  (e: 'retry', kind: ArtifactKind): void;
+  (e: 'request-exercises'): void;
+}>();
+
 const copiedIndex = ref<number | null>(null);
+
+const coreReady = computed(
+  () =>
+    props.artifacts.coreText.status === GenerationTaskStatus.READY &&
+    !!props.artifacts.coreText.text,
+);
 
 const md: MarkdownIt = new MarkdownIt({
   html: false,
@@ -89,7 +124,7 @@ const md: MarkdownIt = new MarkdownIt({
 });
 
 const renderedCoreText = computed(() => {
-  return md.render(props.content.coreText || '');
+  return md.render(props.artifacts.coreText.text || '');
 });
 
 function languageClass(lang: string) {
