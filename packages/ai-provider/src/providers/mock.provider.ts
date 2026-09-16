@@ -1,7 +1,13 @@
-import { IAIProvider } from '../ai-provider.interface';
+import { AIProviderResult, IAIProvider } from '../ai-provider.interface';
 
 export class MockProvider implements IAIProvider {
-  async chat(prompt: string): Promise<string> {
+  async chat(prompt: string): Promise<AIProviderResult> {
+    // mock 不产生真实 token 消耗，故用量字段留空
+    return { content: this.reply(prompt) };
+  }
+
+  /** 各 stage 的模拟返回（按提示词正文里的特征词分派） */
+  private reply(prompt: string): string {
     if (prompt.includes('生成用户肖像摘要')) {
       return JSON.stringify({
         summary: '热爱技术、追求实战的学习者',

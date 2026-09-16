@@ -26,7 +26,7 @@ export class AiIntegrationService {
   }): Promise<Record<string, unknown>> {
     const prompt = PromptManager.build('portrait', context);
     const provider = await this.getProvider();
-    const raw = await provider.chat(prompt);
+    const { content: raw } = await provider.chat(prompt);
     const parsed = PromptManager.parse('portrait', raw);
     // user_profiles.computed_portrait 目前是 jsonb + Record<string, unknown>；
     // 契约层已保证形状，这里用展开生成新对象完成类型桥接（T6/T7 会把该字段收紧并去掉桥接）
@@ -36,7 +36,7 @@ export class AiIntegrationService {
   async generateL1(title: string, description: string | undefined, type: TreeType): Promise<{ nodes: { title: string; description: string }[] }> {
     const prompt = PromptManager.build('l1-outline', { title, description, type });
     const provider = await this.getProvider();
-    const raw = await provider.chat(prompt);
+    const { content: raw } = await provider.chat(prompt);
     return PromptManager.parse('l1-outline', raw) as { nodes: { title: string; description: string }[] };
   }
 
@@ -48,7 +48,7 @@ export class AiIntegrationService {
   ): Promise<{ nodes: { title: string; description: string }[] }> {
     const prompt = PromptManager.build('l1-outline', { title, description, type, selectedPoints });
     const provider = await this.getProvider();
-    const raw = await provider.chat(prompt);
+    const { content: raw } = await provider.chat(prompt);
     return PromptManager.parse('l1-outline', raw) as { nodes: { title: string; description: string }[] };
   }
 
@@ -60,7 +60,7 @@ export class AiIntegrationService {
   }): Promise<{ points: string[] }> {
     const prompt = PromptManager.build('knowledge-points', input);
     const provider = await this.getProvider();
-    const raw = await provider.chat(prompt);
+    const { content: raw } = await provider.chat(prompt);
     return PromptManager.parse('knowledge-points', raw) as { points: string[] };
   }
 
@@ -71,7 +71,7 @@ export class AiIntegrationService {
   ): Promise<{ nodes: { title: string; description: string }[] }> {
     const prompt = PromptManager.build('l2-nodes', { l1Title, l1Description, skillTreeName });
     const provider = await this.getProvider();
-    const raw = await provider.chat(prompt);
+    const { content: raw } = await provider.chat(prompt);
     return PromptManager.parse('l2-nodes', raw) as { nodes: { title: string; description: string }[] };
   }
 
@@ -88,7 +88,7 @@ export class AiIntegrationService {
     const provider = await this.getProvider();
     const maxTokensRaw = this.configService.get<string>('AI_L3_MAX_TOKENS');
     const maxTokens = maxTokensRaw ? parseInt(maxTokensRaw, 10) || 4096 : 4096;
-    const raw = await provider.chat(prompt, { maxTokens });
+    const { content: raw } = await provider.chat(prompt, { maxTokens });
     return PromptManager.parse('l3-content', raw) as {
       coreText: string;
       codeExamples: { title: string; language: string; code: string }[];
@@ -110,7 +110,7 @@ export class AiIntegrationService {
   }> {
     const prompt = PromptManager.build('interview-qa', input);
     const provider = await this.getProvider();
-    const raw = await provider.chat(prompt);
+    const { content: raw } = await provider.chat(prompt);
     return PromptManager.parse('interview-qa', raw) as {
       questions: {
         question: string;
@@ -130,7 +130,7 @@ export class AiIntegrationService {
   }> {
     const prompt = PromptManager.build('discover-new', input);
     const provider = await this.getProvider();
-    const raw = await provider.chat(prompt);
+    const { content: raw } = await provider.chat(prompt);
     return PromptManager.parse('discover-new', raw) as {
       suggestions: { parentTitle?: string | null; title: string; description: string; reason: string }[];
     };
@@ -146,7 +146,7 @@ export class AiIntegrationService {
   }> {
     const prompt = PromptManager.build('check-expire', input);
     const provider = await this.getProvider();
-    const raw = await provider.chat(prompt);
+    const { content: raw } = await provider.chat(prompt);
     return PromptManager.parse('check-expire', raw) as {
       suggestions: { nodeTitle: string; expireLevel: 1 | 2 | 3; reason: string }[];
     };
@@ -168,7 +168,7 @@ export class AiIntegrationService {
   }> {
     const prompt = PromptManager.build('recommendations', context);
     const provider = await this.getProvider();
-    const raw = await provider.chat(prompt);
+    const { content: raw } = await provider.chat(prompt);
     return PromptManager.parse('recommendations', raw) as {
       recommendations: {
         title: string;

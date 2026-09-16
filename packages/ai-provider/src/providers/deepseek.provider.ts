@@ -1,5 +1,10 @@
 import OpenAI from 'openai';
-import { IAIProvider, AIProviderOptions } from '../ai-provider.interface';
+import {
+  AIProviderCallOptions,
+  AIProviderResult,
+  IAIProvider,
+  AIProviderOptions,
+} from '../ai-provider.interface';
 
 export class DeepseekProvider implements IAIProvider {
   private client: OpenAI;
@@ -13,7 +18,7 @@ export class DeepseekProvider implements IAIProvider {
     this.model = options.model;
   }
 
-  async chat(prompt: string, options?: { temperature?: number; maxTokens?: number }): Promise<string> {
+  async chat(prompt: string, options?: AIProviderCallOptions): Promise<AIProviderResult> {
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages: [
@@ -31,6 +36,12 @@ export class DeepseekProvider implements IAIProvider {
     if (!content) {
       throw new Error('Empty response from DeepSeek');
     }
-    return content;
+
+    return {
+      content,
+      promptTokens: response.usage?.prompt_tokens,
+      completionTokens: response.usage?.completion_tokens,
+      model: response.model || this.model,
+    };
   }
 }
