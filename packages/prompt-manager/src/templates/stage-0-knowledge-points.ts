@@ -1,4 +1,5 @@
-import { PromptTemplate, extractJson } from '../prompt-engine';
+import * as z from 'zod';
+import { defineTemplate } from '../prompt-engine';
 
 export interface KnowledgePointsInput {
   title: string;
@@ -7,13 +8,23 @@ export interface KnowledgePointsInput {
   keywords?: string;
 }
 
-export interface KnowledgePointsOutput {
-  points: string[];
-}
+export const knowledgePointsSchema = z.object({
+  points: z
+    .array(z.string().min(1).max(60))
+    .min(1)
+    .max(30)
+    .meta({ description: '候选知识点列表' }),
+});
+export type KnowledgePointsOutput = z.infer<typeof knowledgePointsSchema>;
 
-export const stage0KnowledgePoints: PromptTemplate<KnowledgePointsInput, KnowledgePointsOutput> = {
-  version: '1.0.0',
-  build: (input) => `
+export const stage0KnowledgePoints = defineTemplate<
+  KnowledgePointsInput,
+  KnowledgePointsOutput
+>({
+  version: '2.0.0',
+  stage: 'knowledge-points',
+  schema: knowledgePointsSchema,
+  body: (input) => `
 角色：你是一位资深的技术学习路径规划师。
 任务：为一个技能方向拆解出具体、可学习的知识点清单。这些知识点将交给用户勾选，再被你归纳成 L1 学习大纲。
 
@@ -29,15 +40,5 @@ export const stage0KnowledgePoints: PromptTemplate<KnowledgePointsInput, Knowled
 3. 粒度适中：既不要过宏观（如"基础"），也不要过细节（如某个具体函数的用法）。
 4. 若用户提供了补充关键词，优先包含相关知识点，并保证其排序靠前。
 5. 知识点之间允许有依赖关系，但不要重复。
-6. 输出必须是合法 JSON，不要包含 Markdown 代码块外的任何内容。
-
-输出格式：
-{
-  "points": [
-    "...",
-    "..."
-  ]
-}
 `,
-  parse: extractJson,
-};
+});
