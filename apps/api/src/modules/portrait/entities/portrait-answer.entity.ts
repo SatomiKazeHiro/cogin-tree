@@ -23,7 +23,9 @@ export class PortraitAnswer {
   @JoinColumn({ name: 'profile_id' })
   profile: UserProfile;
 
-  @ManyToOne(() => PortraitQuestion, (question) => question.answers)
+  @ManyToOne(() => PortraitQuestion, (question) => question.answers, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'question_id' })
   question: PortraitQuestion;
 }

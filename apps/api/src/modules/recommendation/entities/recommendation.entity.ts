@@ -5,16 +5,19 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { RecommendationSource } from '@skill/shared';
 import { SkillTree } from '../../skill-tree/entities/skill-tree.entity';
+import { User } from '../../user/entities/user.entity';
 
 @Entity('recommendations')
+@Index(['userId', 'isActive'])
 export class Recommendation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
   @Column({ name: 'skill_tree_id', nullable: true })
@@ -53,7 +56,14 @@ export class Recommendation {
   @Column({ name: 'expire_at', nullable: true })
   expireAt?: Date;
 
-  @ManyToOne(() => SkillTree, (tree) => tree.recommendations, { nullable: true })
+  @ManyToOne(() => SkillTree, (tree) => tree.recommendations, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'skill_tree_id' })
   skillTree?: SkillTree;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 }

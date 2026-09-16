@@ -22,6 +22,10 @@ export class UserProfile {
   @Column({ name: 'computed_portrait', type: 'jsonb', nullable: true })
   computedPortrait?: Record<string, unknown>;
 
+  /** computedPortrait 的 zod 契约版本（阶段 3 起写入） */
+  @Column({ name: 'portrait_schema_version', nullable: true })
+  portraitSchemaVersion?: string;
+
   @Column({ name: 'portrait_updated_at', nullable: true })
   portraitUpdatedAt?: Date;
 

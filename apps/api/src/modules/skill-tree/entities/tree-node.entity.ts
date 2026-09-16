@@ -8,12 +8,15 @@ import {
   JoinColumn,
   OneToMany,
   OneToOne,
+  Index,
 } from 'typeorm';
 import { NodeLevel, NodeStatus } from '@skill/shared';
 import { SkillTree } from './skill-tree.entity';
 import { NodeContent } from '../../content/entities/node-content.entity';
 
 @Entity('tree_nodes')
+@Index(['treeId', 'level'])
+@Index(['parentId'])
 export class TreeNode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -45,14 +48,17 @@ export class TreeNode {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @ManyToOne(() => SkillTree, (tree) => tree.nodes)
+  @ManyToOne(() => SkillTree, (tree) => tree.nodes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tree_id' })
   tree: SkillTree;
 
   @OneToMany(() => TreeNode, (node) => node.parent)
   children: TreeNode[];
 
-  @ManyToOne(() => TreeNode, (node) => node.children, { nullable: true })
+  @ManyToOne(() => TreeNode, (node) => node.children, {
+    nullable: true,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'parent_id' })
   parent: TreeNode;
 
