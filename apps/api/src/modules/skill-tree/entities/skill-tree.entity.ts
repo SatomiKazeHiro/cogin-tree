@@ -5,10 +5,14 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { TreeType } from '@skill/shared';
 import { TreeNode } from './tree-node.entity';
 import { Recommendation } from '../../recommendation/entities/recommendation.entity';
+import { User } from '../../user/entities/user.entity';
 
 @Entity('skill_trees')
 export class SkillTree {
@@ -29,6 +33,15 @@ export class SkillTree {
 
   @Column({ type: 'enum', enum: ['ACTIVE', 'ARCHIVED'], default: 'ACTIVE' })
   status: 'ACTIVE' | 'ARCHIVED';
+
+  /** 归属用户：技能树为私有资源，仅创建者可读写 */
+  @Index()
+  @Column({ name: 'owner_id' })
+  ownerId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'owner_id' })
+  owner: User;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

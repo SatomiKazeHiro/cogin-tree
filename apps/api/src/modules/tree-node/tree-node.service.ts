@@ -73,7 +73,10 @@ export class TreeNodeService {
     return this.nodeRepo.save(nodes);
   }
 
-  async update(id: string, data: Partial<TreeNode>): Promise<TreeNode> {
+  async update(
+    id: string,
+    data: Partial<Pick<TreeNode, 'title' | 'description'>>,
+  ): Promise<TreeNode> {
     await this.nodeRepo.update(id, data);
     return this.findById(id);
   }

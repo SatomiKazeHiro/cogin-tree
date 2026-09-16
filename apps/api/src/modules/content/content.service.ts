@@ -87,7 +87,7 @@ export class ContentService {
 
   async updateContent(
     nodeId: string,
-    data: Partial<NodeContent>,
+    data: Partial<Pick<NodeContent, 'coreText'>>,
   ): Promise<NodeContent> {
     await this.contentRepo.update({ nodeId }, data);
     const content = await this.getContentByNodeId(nodeId);

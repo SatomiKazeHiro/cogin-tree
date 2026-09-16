@@ -30,6 +30,7 @@ export class SkillTreeService {
       type: data.type,
       keywords: data.keywords,
       status: 'ACTIVE',
+      ownerId: userId,
     });
     const saved = await this.treeRepo.save(tree);
 
@@ -92,7 +93,7 @@ export class SkillTreeService {
 
   async update(
     id: string,
-    data: Partial<SkillTree>,
+    data: Partial<Pick<SkillTree, 'name' | 'description' | 'type' | 'keywords'>>,
   ): Promise<SkillTree> {
     await this.treeRepo.update(id, data);
     return this.findById(id);
