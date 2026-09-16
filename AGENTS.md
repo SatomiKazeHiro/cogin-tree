@@ -60,7 +60,7 @@ D:/Git/personal/cogni-tree
 | `portrait` | 肖像问卷题目与提交、AI 生成肖像摘要、原始答案落库（`PortraitAnswer`） |
 | `skill-tree` | 技能树（`SkillTree`）与 L1 节点（`TreeNode`）CRUD、自动生成 L1 |
 | `tree-node` | 节点展开（生成 L2）、子节点查询、节点编辑删除 |
-| `content` | L3 内容（`NodeContent`）与练习题（`Exercise`）的生成与查询 |
+| `content` | L3 产物（`NodeContent` / `CodeExample` / `Exercise`）与生成任务（`GenerationTask`）——`ArtifactService` 负责编排（库级幂等认领 → 前置 coreText → 单事务落库 → 标记状态），`GenerationTaskService` 负责状态机，`ContentService` 只管读写与 legacy 兼容 |
 | `learning-record` | 用户与学习方向/节点的关联记录（`LearningRecord`、`NodeLearningRecord`） |
 | `recommendation` | 推荐列表、按需刷新、从推荐创建技能树 |
 | `interview` | 面试 Q&A（`InterviewQuestion`）：题目挂在 L2 节点上（FK 级联删除），打开面试页时对无题节点后台懒生成（stage 6 按节点出题），`GET /skill-trees/:id/interview` 返回按节点分组的聚合结果 |
@@ -85,7 +85,7 @@ D:/Git/personal/cogni-tree
 |-----------|------|
 | `pages/` | Nuxt 文件路由：`index`、`login`、`register`、`onboarding`、`dashboard`、`settings`、`skills/create`、`skills/[id]/tree`、`skills/[id]/interview` |
 | `layouts/` | `default.vue`（常规页面，内容区 max-width 1200px）、`fullscreen.vue`（技能树全屏，`h-screen`，导航自动铺满宽度） |
-| `components/tree/` | 技能树 Vue Flow 相关组件，按 `Tree` 前缀自动注册（如 `TreeVueFlowGraph`、`TreeDirectoryPanel`、`TreeL3Content`、`TreeExerciseCard`） |
+| `components/tree/` | 技能树 Vue Flow 相关组件，按 `Tree` 前缀自动注册（如 `TreeVueFlowGraph`、`TreeDirectoryPanel`、`TreeL3Content`、`TreeExerciseCard`、`TreeArtifactStateHint`——后者渲染产物的「生成中 / 失败可重试 / 合法空」三种非就绪状态） |
 | `components/dashboard/` | 仪表盘组件（如 `DashboardSkillCard`、`DashboardCurrentLearningSection`、`DashboardRecommendationSection`、`DashboardSkillTreeWizard`） |
 | `components/portrait/` | 肖像问卷组件（`PortraitQuestionStep`、`PortraitSummary`、`PortraitProgressBar`） |
 | `components/interview/` | 面试模式组件（`InterviewQuestionCard`、`InterviewDifficultyFilter`），按 `Interview` 前缀自动注册 |
@@ -220,7 +220,7 @@ pnpm dev
 - 全局管道：`ValidationPipe({ whitelist: true, transform: true })`
 - 统一响应格式：`{ code: 200, data, message: 'success' }`（`TransformInterceptor`）
 - 异常过滤：`GlobalExceptionFilter` 将异常统一为 `{ code, data: null, message }`
-- TypeORM 实体采用**显式数组导入**（`database.config.ts`），未使用 glob，避免 ESM/CJS 问题。当前注册的实体（14 个）：`User`、`UserProfile`、`PortraitQuestion`、`PortraitAnswer`、`SkillTree`、`TreeNode`、`NodeContent`、`Exercise`、`LearningRecord`、`NodeLearningRecord`、`Recommendation`、`InterviewQuestion`、`AnalysisJob`、`SuggestedChange`。
+- TypeORM 实体采用**显式数组导入**（`database.config.ts`），未使用 glob，避免 ESM/CJS 问题。当前注册的实体（17 个）：`User`、`UserProfile`、`PortraitQuestion`、`PortraitAnswer`、`SkillTree`、`TreeNode`、`NodeContent`、`Exercise`、`CodeExample`、`GenerationTask`、`AiGeneration`、`LearningRecord`、`NodeLearningRecord`、`Recommendation`、`InterviewQuestion`、`AnalysisJob`、`SuggestedChange`。
   > 注意：`packages/shared` 中的 `GlobalConfig` 接口**没有**对应实体或模块，未注册。
 - `synchronize: true` 仅在 `NODE_ENV !== 'production'` 时启用。
 - `bcryptjs` 用于密码哈希，避免 Windows 原生编译问题。
@@ -237,9 +237,9 @@ pnpm dev
 | POST | `/portrait/submit` |
 | POST | `/skill-trees/knowledge-points`、`/skill-trees` |
 | GET / PATCH / DELETE | `/skill-trees/:id` |
-| GET | `/nodes/:id/children`、`/nodes/:id` |
-| POST | `/nodes/:id/expand`、`/nodes/:id/content` |
-| GET / PATCH | `/nodes/:id/content` |
+| GET | `/nodes/:id/children`、`/nodes/:id`、`/nodes/:id/artifacts` |
+| POST | `/nodes/:id/expand`、`/nodes/:id/content`（legacy，语义=确保 coreText）、`/nodes/:id/artifacts/:kind/generate`（`kind` ∈ `L3_CORE_TEXT`/`L3_CODE_EXAMPLES`/`L3_EXERCISES`，非法值 400） |
+| GET / PATCH | `/nodes/:id/content`（legacy；GET 附 `artifacts` 状态字段） |
 | PATCH / DELETE | `/nodes/:id` |
 | GET / POST | `/learning-records` |
 | PATCH / DELETE | `/learning-records/:id` |
@@ -295,13 +295,15 @@ pnpm dev
   - `knowledge-points`（stage 0）
   - `l1-outline`（stage 1）
   - `l2-nodes`（stage 2）
-  - `l3-content`（stage 3）
+  - `l3-core-text`（stage 3a，只生成核心文本）
+  - `l3-code-examples`（stage 3b，输入带 `coreText`，保证示例与讲解一致）
+  - `l3-exercises`（stage 3c，输入带 `coreText`，避免考没讲过的内容）
   - `discover-new`（stage 4）
   - `check-expire`（stage 5）
   - `interview-qa`（stage 6）
   - `portrait`（stage 7）
   - `recommendations`（stage 8）
-- 全部 stage（0/1/2/3/4/5/6/7/8）均已注册。
+- 全部 11 个 stage 均已注册（阶段 4 把原 `l3-content` 拆成 3a/3b/3c，各自独立契约、独立失败与重试）。
 
 ---
 
@@ -367,7 +369,9 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
   - `modules/recommendation/recommendation.service.spec.ts`：推荐 TTL 判断与「过期先返回、后台刷新」逻辑；
   - `modules/auth/auth.service.spec.ts`：注册/登录（含密码哈希校验与异常分支）；
   - `modules/analysis/analysis.service.spec.ts`：建议采纳（创建节点/标记过期）、状态约束、标题匹配与 AI 失败降级；
-  - `modules/interview/interview.service.spec.ts`：按节点聚合分组、懒生成触发与并发去重、生成失败降级。
+  - `modules/interview/interview.service.spec.ts`：按节点聚合分组、懒生成触发与并发去重、生成失败降级；
+  - `modules/content/generation-task.service.spec.ts`：产物状态机的原子认领 SQL（含 `on conflict` 条件与 120s 陈旧阈值）、`markReady`/`markFailed` 语义；
+  - `modules/content/artifact.service.spec.ts`：产物编排（幂等认领、coreText 前置依赖、失败标记并抛出、无 task 行时按内容兜底派生状态）。
 - 测试方式：直接 `new Service(...)` 传入 mock 依赖，不依赖 Nest 测试模块与真实数据库。
 - 前端与 packages 下各包仍无测试；新增功能时应优先为纯逻辑、可确定的代码补测试（AI 生成内容本身不可测）。
 - 日常验证仍以 `pnpm typecheck` 与手动运行 `pnpm dev` 为辅。
@@ -408,11 +412,13 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 ## 已知限制与待办（基于实际代码）
 
-1. **测试覆盖有限**：已建立 Jest 基建并覆盖 extractJson / 推荐 TTL / auth / analysis 建议流 / interview 懒生成（见「测试策略」），其余模块仍无测试。
+1. **测试覆盖有限**：已建立 Jest 基建并覆盖 extractJson / 推荐 TTL / auth / analysis 建议流 / interview 懒生成 / 产物状态机与编排（见「测试策略」），其余模块仍无测试。
 2. **推荐定时调度未实现**：用户访问时按需生成，TTL 3 天；已过期则先返回旧推荐并后台异步刷新（无 cron 预生成）。
 3. **ANTHROPIC Provider 未接入**：`AIProviderType.ANTHROPIC` 在工厂中未实现真实调用。
 4. **生产部署配置缺失**：没有 Dockerfile、docker-compose、CI/CD workflow 或部署脚本。
 5. **analysis 按树分析（偏离设计文档）**：文档设计为按节点分析（POST /nodes/:id/analyze），实际实现为按树一键分析（POST /skill-trees/:id/analysis）；`TreeNode.keyPoints` 字段未回填；建议无「重新生成」入口。
+6. **过期 → 重新生成缺失**：节点被标记 `OUTDATED_*` 后没有「重新生成 coreText」的入口（`NodeContent.version` 目前只在 coreText 重新生成时 +1；代码示例/练习题是「先删后插」，无版本概念）。计划中的阶段 5 处理。
+7. **interview 仍用内存 Map 去重**：产物生成已改为 `generation_tasks` 的库级原子认领（跨进程/重启安全），`interview.service.ts` 的并发去重仍是内存 `Map`，尚未迁移。
 
 ---
 
