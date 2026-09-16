@@ -93,3 +93,24 @@ export enum AIProviderType {
   DEEPSEEK = 'deepseek',
   MOCK = 'mock',
 }
+
+/** AI 产物种类（一个种类 = 一个契约 + 一个状态） */
+export enum ArtifactKind {
+  L3_CORE_TEXT = 'L3_CORE_TEXT',
+  L3_CODE_EXAMPLES = 'L3_CODE_EXAMPLES',
+  L3_EXERCISES = 'L3_EXERCISES',
+}
+
+export enum GenerationTaskStatus {
+  PENDING = 'PENDING',
+  GENERATING = 'GENERATING',
+  READY = 'READY',
+  FAILED = 'FAILED',
+}
+
+export enum AiGenerationErrorKind {
+  INVALID_JSON = 'invalid_json',
+  TRUNCATED = 'truncated',
+  SCHEMA_MISMATCH = 'schema_mismatch',
+  PROVIDER_ERROR = 'provider_error',
+}

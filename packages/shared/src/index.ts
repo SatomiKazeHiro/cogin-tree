@@ -15,6 +15,9 @@ export {
   ExpireLevel,
   InterviewDifficulty,
   AIProviderType,
+  ArtifactKind,
+  GenerationTaskStatus,
+  AiGenerationErrorKind,
 } from './enums';
 export * from './interfaces/entities';
 export * from './interfaces/api';
