@@ -1,8 +1,8 @@
 <template>
   <div class="mx-auto h-full max-w-[860px] overflow-y-auto px-6 py-8">
-    <!-- 加载中（首次访问需等待 AI 生成） -->
+    <!-- 加载中 -->
     <div v-if="loading" class="space-y-4">
-      <p class="text-[14px] text-muted">正在生成面试题，首次生成约需半分钟…</p>
+      <p class="text-[14px] text-muted">正在加载面试题…</p>
       <AppSkeleton v-for="i in 4" :key="i" variant="card" card-height="h-28" />
     </div>
 
@@ -14,47 +14,71 @@
 
     <!-- 空结果 -->
     <EmptyState
-      v-else-if="questions.length === 0"
+      v-else-if="groups.length === 0"
       title="暂无面试题"
-      description="稍后再来看看。"
+      description="先在技能树中展开 L2 节点，再来查看面试题。"
     />
 
-    <!-- Q&A 列表 -->
+    <!-- 按节点分组的 Q&A -->
     <template v-else>
       <div class="mb-6 flex items-center justify-between gap-4">
         <InterviewDifficultyFilter v-model="difficulty" :counts="counts" />
         <span class="shrink-0 text-[13px] text-muted">
-          共 {{ filteredQuestions.length }} 题
+          共 {{ filteredCount }} 题
         </span>
       </div>
 
       <div
-        v-for="group in groupedQuestions"
-        :key="group.topic"
+        v-for="group in visibleGroups"
+        :key="group.nodeId"
         class="mb-8"
+        :class="{ 'opacity-70': isOutdated(group.nodeStatus) }"
       >
-        <h2 class="mb-3 font-serif text-[18px] font-[400] text-ink">
-          {{ group.topic || '通用' }}
+        <h2 class="mb-3 flex items-baseline gap-2 font-serif text-[18px] font-[400] text-ink">
+          <span class="text-[13px] text-muted">{{ group.l1Title }} /</span>
+          {{ group.nodeTitle }}
+          <span
+            v-if="isOutdated(group.nodeStatus)"
+            class="rounded-[6px] bg-elevated px-2 py-0.5 text-[12px] text-muted"
+          >
+            已过时
+          </span>
         </h2>
-        <div class="space-y-3">
+
+        <!-- 该节点题目生成中 -->
+        <div
+          v-if="group.questions.length === 0"
+          class="rounded-[9.6px] border border-dashed border-border p-5 text-[13px] text-muted"
+        >
+          该主题题目生成中，稍后自动出现…
+        </div>
+
+        <div v-else class="space-y-3">
           <InterviewQuestionCard
-            v-for="q in group.questions"
+            v-for="q in filterByDifficulty(group.questions)"
             :key="q.id"
             :question="q"
           />
+          <p
+            v-if="filterByDifficulty(group.questions).length === 0"
+            class="text-[13px] text-muted"
+          >
+            该难度下暂无题目。
+          </p>
         </div>
       </div>
-
-      <EmptyState
-        v-if="filteredQuestions.length === 0"
-        title="该难度下暂无题目"
-      />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { InterviewDifficulty, type InterviewQuestion, type SkillTree } from '@skill/shared';
+import {
+  InterviewDifficulty,
+  NodeStatus,
+  type InterviewNodeGroup,
+  type InterviewQuestion,
+  type SkillTree,
+} from '@skill/shared';
 import type { DifficultyFilter } from '~/components/interview/InterviewDifficultyFilter.vue';
 
 definePageMeta({
@@ -67,45 +91,63 @@ const { api } = useApi();
 const pageHeader = usePageHeader();
 
 const treeId = route.params.id as string;
+const MAX_RETRY = 2;
 
-const questions = ref<InterviewQuestion[]>([]);
+const groups = ref<InterviewNodeGroup[]>([]);
 const loading = ref(true);
 const loadError = ref('');
 const difficulty = ref<DifficultyFilter>('ALL');
+let retryCount = 0;
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+const allQuestions = computed(() => groups.value.flatMap((g) => g.questions));
 
 const counts = computed<Partial<Record<DifficultyFilter, number>>>(() => ({
-  ALL: questions.value.length,
-  [InterviewDifficulty.EASY]: questions.value.filter((q) => q.difficulty === InterviewDifficulty.EASY).length,
-  [InterviewDifficulty.MEDIUM]: questions.value.filter((q) => q.difficulty === InterviewDifficulty.MEDIUM).length,
-  [InterviewDifficulty.HARD]: questions.value.filter((q) => q.difficulty === InterviewDifficulty.HARD).length,
+  ALL: allQuestions.value.length,
+  [InterviewDifficulty.EASY]: allQuestions.value.filter((q) => q.difficulty === InterviewDifficulty.EASY).length,
+  [InterviewDifficulty.MEDIUM]: allQuestions.value.filter((q) => q.difficulty === InterviewDifficulty.MEDIUM).length,
+  [InterviewDifficulty.HARD]: allQuestions.value.filter((q) => q.difficulty === InterviewDifficulty.HARD).length,
 }));
 
-const filteredQuestions = computed(() =>
-  difficulty.value === 'ALL'
-    ? questions.value
-    : questions.value.filter((q) => q.difficulty === difficulty.value),
+const filteredCount = computed(
+  () =>
+    groups.value.reduce((sum, g) => sum + filterByDifficulty(g.questions).length, 0),
 );
 
-const groupedQuestions = computed(() => {
-  const groups: { topic: string; questions: InterviewQuestion[] }[] = [];
-  for (const q of filteredQuestions.value) {
-    const existing = groups.find((g) => g.topic === q.topic);
-    if (existing) {
-      existing.questions.push(q);
-    } else {
-      groups.push({ topic: q.topic, questions: [q] });
-    }
-  }
-  return groups;
-});
+/** 有题的组，或正在生成中的组都展示 */
+const visibleGroups = computed(() => groups.value);
 
-async function loadQuestions() {
-  loading.value = true;
-  loadError.value = '';
+function filterByDifficulty(questions: InterviewQuestion[]) {
+  return difficulty.value === 'ALL'
+    ? questions
+    : questions.filter((q) => q.difficulty === difficulty.value);
+}
+
+function isOutdated(status: NodeStatus) {
+  return status !== NodeStatus.ACTIVE;
+}
+
+/** 有空题组（后台懒生成中）时，15s 后静默重取，最多 MAX_RETRY 次 */
+function scheduleRetryIfPending() {
+  const hasPending = groups.value.some((g) => g.questions.length === 0);
+  if (hasPending && retryCount < MAX_RETRY) {
+    retryCount += 1;
+    retryTimer = setTimeout(() => loadQuestions(true), 15000);
+  }
+}
+
+async function loadQuestions(silent = false) {
+  if (!silent) {
+    loading.value = true;
+    loadError.value = '';
+  }
   try {
-    questions.value = await api<InterviewQuestion[]>(`/skill-trees/${treeId}/interview`);
+    groups.value = await api<InterviewNodeGroup[]>(`/skill-trees/${treeId}/interview`);
+    scheduleRetryIfPending();
   } catch (err: unknown) {
-    loadError.value = err instanceof Error ? err.message : '面试题加载失败';
+    if (!silent) {
+      loadError.value = err instanceof Error ? err.message : '面试题加载失败';
+    }
   } finally {
     loading.value = false;
   }
@@ -126,5 +168,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   pageHeader.value = {};
+  if (retryTimer) clearTimeout(retryTimer);
 });
 </script>

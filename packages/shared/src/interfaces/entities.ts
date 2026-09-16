@@ -179,11 +179,10 @@ export interface SuggestedChange {
 export interface InterviewQuestion {
   id: string;
   treeId: string;
-  l2NodeId?: string;
+  l2NodeId: string;
   question: string;
   answer: string;
   difficulty: InterviewDifficulty;
-  topic: string;
   sortOrder: number;
   createdAt: Date;
 }

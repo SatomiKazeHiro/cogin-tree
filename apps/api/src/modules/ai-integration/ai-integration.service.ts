@@ -95,14 +95,14 @@ export class AiIntegrationService {
 
   async generateInterviewQA(input: {
     treeName: string;
-    description?: string;
-    topics: { l1Title: string; l2Title: string; l2Description?: string }[];
+    l1Title: string;
+    l2Title: string;
+    l2Description?: string;
   }): Promise<{
     questions: {
       question: string;
       answer: string;
       difficulty: string;
-      topic: string;
     }[];
   }> {
     const prompt = PromptManager.build('interview-qa', input);
@@ -113,7 +113,6 @@ export class AiIntegrationService {
         question: string;
         answer: string;
         difficulty: string;
-        topic: string;
       }[];
     };
   }
