@@ -19,6 +19,8 @@
   - 节点学习状态标记
 - **AI 内容生成**：自动生成 L1 大纲、L2 节点、L3 核心文本/代码示例/练习题。
 - **学习状态**：节点可标记为未开始/学习中/已完成/跳过，仪表盘同步展示。
+- **面试模式**：面试树专属视图，按 L2 节点分组展示 Q&A；无题节点在打开页面时后台懒生成。
+- **AI 分析**：对整棵技能树一键分析，产出「新增节点」与「过期节点」建议，可逐条采纳/忽略。
 - **明暗主题**：支持 light / dark / system 三档切换，自动持久化。
 
 ---
@@ -99,10 +101,10 @@ pnpm --filter web typecheck
 # 构建
 pnpm build
 
-# 运行测试（当前暂无测试文件）
+# 运行测试（仅 apps/api 有 Jest 单元测试，见「测试」小节）
 pnpm test
 
-# Lint
+# Lint（注意：apps/api 只有 lint 脚本，仓库内没有 eslint 配置与依赖，当前无法执行）
 pnpm lint
 
 # 重新构建工作区包（修改 @skill/shared 后必须执行）
@@ -128,8 +130,7 @@ pnpm --filter prompt-manager build
 │   └── dev.js               # 同时启动 API + Web
 ├── docs/
 │   ├── DESIGN.md            # 视觉/设计系统文档
-│   ├── 系统架构设计.md       # 系统架构与数据模型
-│   └── *.jpg                # 设计/架构示意图
+│   └── 系统架构设计.md       # 系统架构与数据模型
 ├── .env.example             # 环境变量示例
 ├── pnpm-workspace.yaml      # pnpm workspace 配置
 └── README.md                # 本文件
@@ -178,7 +179,20 @@ pnpm --filter prompt-manager build
 
 - AI Provider 配置只读取 `.env`，不再从数据库/设置页读取。
 - TypeORM 在非生产环境启用 `synchronize: true`，生产环境请关闭并改用迁移。
-- 当前仓库没有单元测试/E2E 测试；`pnpm test` 会调用 turbo run test。
+- 后端已有 Jest 单元测试（`pnpm --filter api test`，测试文件位于 `apps/api/src` 下、以 `.spec.ts` 结尾）；前端与 `packages/` 下各包暂无测试。
+- 推荐没有定时任务：用户访问推荐接口时按 3 天 TTL 判断，已过期则先返回旧推荐并在后台异步刷新。
+
+---
+
+## 测试
+
+```bash
+pnpm test                       # 等价于 turbo run test，当前只有 apps/api 有测试
+pnpm --filter api test          # 直接跑 Jest
+pnpm --filter api test -- src/modules/interview   # 只跑某个路径下的测试
+```
+
+当前覆盖：`extractJson` 解析分支、推荐 TTL、注册/登录、AI 分析建议流、面试题按节点聚合与懒生成。
 
 ---
 

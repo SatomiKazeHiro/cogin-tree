@@ -30,7 +30,7 @@
 ## 仓库结构
 
 ```
-D:/MGit-Projects/cogni-tree
+D:/Git/personal/cogni-tree
 ├── apps/
 │   ├── api/                 # NestJS 后端（@skill/api）
 │   └── web/                 # Nuxt 3 前端（@skill/web）
@@ -48,8 +48,7 @@ D:/MGit-Projects/cogni-tree
 ├── pnpm-workspace.yaml      # workspace: apps/*, packages/*
 ├── package.json             # 根脚本与 devDependencies
 ├── tsconfig.json            # 根 TypeScript 配置（供未独立 tsconfig 的包参考）
-├── CLAUDE.md                # Claude Code 专用提示
-└── AGENTS.md                # 本文件
+└── AGENTS.md                # 本文件（AI 编码助手项目指南）
 ```
 
 ### 后端模块 (`apps/api/src/modules/`)
@@ -64,8 +63,8 @@ D:/MGit-Projects/cogni-tree
 | `content` | L3 内容（`NodeContent`）与练习题（`Exercise`）的生成与查询 |
 | `learning-record` | 用户与学习方向/节点的关联记录（`LearningRecord`、`NodeLearningRecord`） |
 | `recommendation` | 推荐列表、按需刷新、从推荐创建技能树 |
-| `interview` | 面试 Q&A（`InterviewQuestion`）：首次访问按树生成（stage 6）并落库缓存，`GET /skill-trees/:id/interview` |
-| `analysis` | 按树 AI 分析（stage 4/5）：新增发现 + 过期检查，`AnalysisJob` / `SuggestedChange`，建议采纳/忽略 |
+| `interview` | 面试 Q&A（`InterviewQuestion`）：题目挂在 L2 节点上（FK 级联删除），打开面试页时对无题节点后台懒生成（stage 6 按节点出题），`GET /skill-trees/:id/interview` 返回按节点分组的聚合结果 |
+| `analysis` | 按树 AI 分析（stage 4/5）：新增发现 + 过期检查，`AnalysisJob` / `SuggestedChange`，建议采纳/忽略；分析输入包含 PENDING 建议标题用于去重 |
 | `dashboard` | 仪表盘数据聚合 |
 | `ai-integration` | 统一调用 `@skill/ai-provider` 与 `@skill/prompt-manager`，从 `.env` 读取 AI 配置 |
 
@@ -77,8 +76,8 @@ D:/MGit-Projects/cogni-tree
 
 注意：
 
-- `analysis` 模块在设计文档（`docs/系统架构设计.md`）中有规划，但**当前代码中不存在**。
-- 推荐定时调度（`recommendation-scheduler`）在文档中有设计，但**当前未实现**；推荐是按需生成（用户访问推荐接口时检查 3 天 TTL，见 `recommendation.service.ts` 的 `RECOMMENDATION_TTL_DAYS = 3`）。
+- 推荐定时调度（`recommendation-scheduler`）在设计文档中有规划，但**当前未实现**（依赖里没有 `@nestjs/schedule`，代码中也没有 `@Cron`）；推荐是按需生成（用户访问推荐接口时检查 3 天 TTL，见 `recommendation.service.ts` 的 `RECOMMENDATION_TTL_DAYS = 3`）。
+- `docs/系统架构设计.md` 已按代码校准（每个「未实现 / 设计稿」都会显式标注）；其「八、API 端点设计」即实际端点。若两者仍有出入，**以控制器代码为准**。
 
 ### 前端结构 (`apps/web/`)
 
@@ -109,7 +108,7 @@ D:/MGit-Projects/cogni-tree
 - **Node.js**：>= 20
 - **包管理器**：pnpm 9.0.0（在 `package.json` 的 `packageManager` 中锁定）
 - **数据库**：PostgreSQL，默认 `localhost:5432`
-- **AI Provider**：DeepSeek（默认）或 Mock；需要有效的 `AI_API_KEY` 才能调用真实模型
+- **AI Provider**：`.env.example` 默认 `deepseek`；代码在 `AI_PROVIDER` 未设置时回退到 `mock`（`ai-integration.service.ts`）。需要有效的 `AI_API_KEY` 才能调用真实模型
 
 ---
 
@@ -183,7 +182,7 @@ pnpm --filter web typecheck      # nuxt typecheck
 pnpm test
 # 实际仅 apps/api 有 Jest 测试（见「测试策略」）；`pnpm test` 会调用 turbo run test
 
-# Lint（仅 apps/api 配置了 eslint）
+# Lint（注意：apps/api 只有 lint 脚本，仓库内既无 eslint 配置也无 eslint 依赖，当前执行会失败）
 pnpm lint
 ```
 
@@ -221,10 +220,38 @@ pnpm dev
 - 全局管道：`ValidationPipe({ whitelist: true, transform: true })`
 - 统一响应格式：`{ code: 200, data, message: 'success' }`（`TransformInterceptor`）
 - 异常过滤：`GlobalExceptionFilter` 将异常统一为 `{ code, data: null, message }`
-- TypeORM 实体采用**显式数组导入**（`database.config.ts`），未使用 glob，避免 ESM/CJS 问题。当前注册的实体：`User`、`UserProfile`、`GlobalConfig`、`PortraitQuestion`、`PortraitAnswer`、`SkillTree`、`TreeNode`、`NodeContent`、`Exercise`、`LearningRecord`、`NodeLearningRecord`、`Recommendation`。
+- TypeORM 实体采用**显式数组导入**（`database.config.ts`），未使用 glob，避免 ESM/CJS 问题。当前注册的实体（14 个）：`User`、`UserProfile`、`PortraitQuestion`、`PortraitAnswer`、`SkillTree`、`TreeNode`、`NodeContent`、`Exercise`、`LearningRecord`、`NodeLearningRecord`、`Recommendation`、`InterviewQuestion`、`AnalysisJob`、`SuggestedChange`。
+  > 注意：`packages/shared` 中的 `GlobalConfig` 接口**没有**对应实体或模块，未注册。
 - `synchronize: true` 仅在 `NODE_ENV !== 'production'` 时启用。
 - `bcryptjs` 用于密码哈希，避免 Windows 原生编译问题。
 - NestJS 编译器使用 webpack（`nest-cli.json` 中 `webpack: true`）。
+
+#### 实际 HTTP 端点（均带 `/api` 前缀，除 health 外都要求 JWT）
+
+| 方法 | 路径 |
+|------|------|
+| GET | `/health` |
+| POST | `/auth/register`、`/auth/login` |
+| GET / PATCH | `/users/me` |
+| GET | `/portrait/questions` |
+| POST | `/portrait/submit` |
+| POST | `/skill-trees/knowledge-points`、`/skill-trees` |
+| GET / PATCH / DELETE | `/skill-trees/:id` |
+| GET | `/nodes/:id/children`、`/nodes/:id` |
+| POST | `/nodes/:id/expand`、`/nodes/:id/content` |
+| GET / PATCH | `/nodes/:id/content` |
+| PATCH / DELETE | `/nodes/:id` |
+| GET / POST | `/learning-records` |
+| PATCH / DELETE | `/learning-records/:id` |
+| GET | `/skill-trees/:treeId/progress` |
+| POST | `/skill-trees/:treeId/nodes/:nodeId/learning-status` |
+| GET | `/dashboard` |
+| GET | `/recommendations` |
+| POST | `/recommendations/refresh`、`/recommendations/from-recommendation` |
+| GET | `/skill-trees/:id/interview` |
+| POST | `/skill-trees/:id/analysis` |
+| GET | `/skill-trees/:id/analysis/suggestions` |
+| POST | `/analysis/suggestions/:sid/apply`、`/analysis/suggestions/:sid/ignore` |
 
 ### 前端 (`apps/web`)
 
@@ -338,7 +365,9 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 - 当前覆盖的关键路径：
   - `modules/ai-integration/extract-json.spec.ts`：`@skill/prompt-manager` 的 `extractJson` 各类解析/失败分支；
   - `modules/recommendation/recommendation.service.spec.ts`：推荐 TTL 判断与「过期先返回、后台刷新」逻辑；
-  - `modules/auth/auth.service.spec.ts`：注册/登录（含密码哈希校验与异常分支）。
+  - `modules/auth/auth.service.spec.ts`：注册/登录（含密码哈希校验与异常分支）；
+  - `modules/analysis/analysis.service.spec.ts`：建议采纳（创建节点/标记过期）、状态约束、标题匹配与 AI 失败降级；
+  - `modules/interview/interview.service.spec.ts`：按节点聚合分组、懒生成触发与并发去重、生成失败降级。
 - 测试方式：直接 `new Service(...)` 传入 mock 依赖，不依赖 Nest 测试模块与真实数据库。
 - 前端与 packages 下各包仍无测试；新增功能时应优先为纯逻辑、可确定的代码补测试（AI 生成内容本身不可测）。
 - 日常验证仍以 `pnpm typecheck` 与手动运行 `pnpm dev` 为辅。
@@ -379,7 +408,7 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 ## 已知限制与待办（基于实际代码）
 
-1. **测试覆盖有限**：已建立 Jest 基建并覆盖 extractJson / 推荐 TTL / auth / analysis 建议流（见「测试策略」），其余模块仍无测试。
+1. **测试覆盖有限**：已建立 Jest 基建并覆盖 extractJson / 推荐 TTL / auth / analysis 建议流 / interview 懒生成（见「测试策略」），其余模块仍无测试。
 2. **推荐定时调度未实现**：用户访问时按需生成，TTL 3 天；已过期则先返回旧推荐并后台异步刷新（无 cron 预生成）。
 3. **ANTHROPIC Provider 未接入**：`AIProviderType.ANTHROPIC` 在工厂中未实现真实调用。
 4. **生产部署配置缺失**：没有 Dockerfile、docker-compose、CI/CD workflow 或部署脚本。
@@ -394,4 +423,4 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 - 新增 Prompt stage 时，在 `packages/prompt-manager/src/prompt-manager.ts` 与 `src/index.ts` 中注册。
 - 保持 `.env.example` 与代码同步；不要修改 `.env` 的内容结构而不更新示例。
 - 样式改动优先通过 Tailwind token 变量完成，保持设计系统一致。
-- 不要假设已有测试；改动后请手动跑 `pnpm typecheck` 与 `pnpm dev` 验证。
+- 已有测试（见「测试策略」）；改动后至少跑 `pnpm typecheck` 与 `pnpm --filter api test`，涉及页面/交互时再手动跑 `pnpm dev` 验证。
