@@ -126,10 +126,12 @@ const tabs = computed(() => {
   const list: { key: 'concept' | 'code' | 'exercise'; label: string }[] = [
     { key: 'concept', label: '概念' },
   ];
-  // 生成中/未就绪时不冒出空的 code tab；就绪后才展示
+  const codeStatus = props.artifacts?.codeExamples.status;
+  const codeCount = props.artifacts?.codeExamples.items.length ?? 0;
+  // 生成中不冒出空 tab；但**失败必须给 tab**，否则用户没有任何入口看到失败并重试
   if (
-    props.artifacts?.codeExamples.status === GenerationTaskStatus.READY &&
-    props.artifacts.codeExamples.items.length > 0
+    codeStatus === GenerationTaskStatus.FAILED ||
+    (codeStatus === GenerationTaskStatus.READY && codeCount > 0)
   ) {
     list.push({ key: 'code', label: '代码演示' });
   }
