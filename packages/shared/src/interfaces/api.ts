@@ -4,7 +4,7 @@ import {
   SkillTree,
   InterviewQuestion,
 } from './entities';
-import { LearningStatus, NodeLearningStatus, NodeStatus } from '../enums';
+import { LearningStatus, NodeLearningStatus, NodeStatus, GenerationTaskStatus } from '../enums';
 
 export interface CurrentLearningItem {
   skillTreeId: string;
@@ -32,4 +32,31 @@ export interface InterviewNodeGroup {
   l1Title: string;
   nodeStatus: NodeStatus;
   questions: InterviewQuestion[];
+}
+
+/** 单个产物的状态视图（状态来自 generation_tasks，内容来自各自的业务表） */
+export interface ArtifactStatusView {
+  status: GenerationTaskStatus;
+  attempts: number;
+  lastError?: string | null;
+}
+
+export interface ArtifactCodeExample {
+  title: string;
+  language: string;
+  code: string;
+}
+
+export interface ArtifactExercise {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
+/** GET /nodes/:id/artifacts 的响应：三类产物的状态 + 已就绪内容（前端分块渲染依据） */
+export interface NodeArtifactsResponse {
+  coreText: ArtifactStatusView & { text: string | null };
+  codeExamples: ArtifactStatusView & { items: ArtifactCodeExample[] };
+  exercises: ArtifactStatusView & { items: ArtifactExercise[] };
 }
