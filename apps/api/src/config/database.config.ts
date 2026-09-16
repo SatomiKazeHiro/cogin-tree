@@ -38,7 +38,9 @@ export function databaseConfig(): TypeOrmModuleOptions {
       AnalysisJob,
       SuggestedChange,
     ],
-    synchronize: process.env.NODE_ENV !== 'production',
+    // schema 变更一律走 migration（见 apps/api/src/migrations/）
+    synchronize: false,
+    migrations: [],
     logging: process.env.NODE_ENV === 'development',
   };
 }
