@@ -16,6 +16,7 @@ import { RecommendationModule } from './modules/recommendation/recommendation.mo
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { InterviewModule } from './modules/interview/interview.module';
 import { AnalysisModule } from './modules/analysis/analysis.module';
+import { TreeAccessModule } from './modules/tree-access/tree-access.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -30,6 +31,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     UserModule,
     AiIntegrationModule,
     PortraitModule,
+    TreeAccessModule,
     SkillTreeModule,
     TreeNodeModule,
     ContentModule,
