@@ -36,14 +36,17 @@ export class SkillTreeService {
     const saved = await this.treeRepo.save(tree);
 
     // Generate L1 nodes via AI
+    // 此时树已落库，故能带上 treeId；T7 会改为先算后落库（届时 treeId 尚不存在，只带 userId）
+    const aiCtx = { userId, treeId: saved.id };
     const l1Result = data.selectedPoints?.length
       ? await this.aiService.generateL1FromPoints(
           saved.name,
           saved.description,
           saved.type,
           data.selectedPoints,
+          aiCtx,
         )
-      : await this.aiService.generateL1(saved.name, saved.description, saved.type);
+      : await this.aiService.generateL1(saved.name, saved.description, saved.type, aiCtx);
 
     const nodes = (l1Result.nodes || []).map((node, index) =>
       this.nodeRepo.create({
@@ -69,18 +72,24 @@ export class SkillTreeService {
     return this.findById(saved.id, userId);
   }
 
-  async generateKnowledgePoints(data: {
-    title: string;
-    description?: string;
-    type: TreeType;
-    keywords?: string;
-  }): Promise<{ points: string[] }> {
-    return this.aiService.generateKnowledgePoints({
-      title: data.title,
-      description: data.description,
-      type: data.type,
-      keywords: data.keywords,
-    });
+  async generateKnowledgePoints(
+    data: {
+      title: string;
+      description?: string;
+      type: TreeType;
+      keywords?: string;
+    },
+    userId: string,
+  ): Promise<{ points: string[] }> {
+    return this.aiService.generateKnowledgePoints(
+      {
+        title: data.title,
+        description: data.description,
+        type: data.type,
+        keywords: data.keywords,
+      },
+      { userId },
+    );
   }
 
   async findById(id: string, userId: string): Promise<SkillTree> {

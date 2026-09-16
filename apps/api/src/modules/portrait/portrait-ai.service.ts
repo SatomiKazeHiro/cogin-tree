@@ -42,12 +42,15 @@ export class PortraitAIService {
       grouped[question.category].push(`${question.question}: ${selectedText.join(', ')}`);
     }
 
-    const portrait = await this.aiService.generatePortrait({
-      identityAnswers: grouped[PortraitQuestionCategory.IDENTITY],
-      interestAnswers: grouped[PortraitQuestionCategory.INTEREST],
-      goalAnswers: grouped[PortraitQuestionCategory.GOAL],
-      backgroundAnswers: grouped[PortraitQuestionCategory.BACKGROUND],
-    });
+    const portrait = await this.aiService.generatePortrait(
+      {
+        identityAnswers: grouped[PortraitQuestionCategory.IDENTITY],
+        interestAnswers: grouped[PortraitQuestionCategory.INTEREST],
+        goalAnswers: grouped[PortraitQuestionCategory.GOAL],
+        backgroundAnswers: grouped[PortraitQuestionCategory.BACKGROUND],
+      },
+      { userId },
+    );
 
     await this.userService.updateProfile(userId, {
       computedPortrait: portrait,

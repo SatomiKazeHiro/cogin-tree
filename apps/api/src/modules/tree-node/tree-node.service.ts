@@ -55,6 +55,7 @@ export class TreeNodeService {
         node.title,
         node.description,
         skillTreeName,
+        { userId, treeId: node.treeId, nodeId: node.id },
       );
     } else {
       // L2 expansion handled by content module

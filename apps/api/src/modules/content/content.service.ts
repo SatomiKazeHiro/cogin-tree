@@ -65,6 +65,7 @@ export class ContentService {
         l1Node?.title || '',
         node.title,
         tree?.name || '',
+        { userId, treeId: node.treeId, nodeId },
       );
 
       const content = this.contentRepo.create({

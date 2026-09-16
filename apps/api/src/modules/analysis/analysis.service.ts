@@ -103,10 +103,13 @@ export class AnalysisService {
         'discover-new',
         { ...input, existingSuggestions: pendingAddTitles },
         () =>
-          this.aiService.generateDiscoverNew({
-            ...input,
-            existingSuggestions: pendingAddTitles,
-          }),
+          this.aiService.generateDiscoverNew(
+            {
+              ...input,
+              existingSuggestions: pendingAddTitles,
+            },
+            { userId, treeId },
+          ),
       ),
       this.runJob(
         treeId,
@@ -114,10 +117,13 @@ export class AnalysisService {
         'check-expire',
         { ...input, existingSuggestions: pendingExpireTitles },
         () =>
-          this.aiService.generateCheckExpire({
-            ...input,
-            existingSuggestions: pendingExpireTitles,
-          }),
+          this.aiService.generateCheckExpire(
+            {
+              ...input,
+              existingSuggestions: pendingExpireTitles,
+            },
+            { userId, treeId },
+          ),
       ),
     ]);
 

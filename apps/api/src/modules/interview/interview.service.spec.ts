@@ -89,6 +89,8 @@ describe('InterviewService.findForTree（聚合 + 懒生成）', () => {
     expect(aiService.generateInterviewQA).toHaveBeenCalledTimes(1);
     expect(aiService.generateInterviewQA).toHaveBeenCalledWith(
       expect.objectContaining({ l2Title: '主题B', l1Title: '前端基础' }),
+      // 第二个参数是审计上下文（ai_generations 的 user/tree/node 关联）
+      expect.objectContaining({ userId: 'u1', treeId: 't-1', nodeId: 'n-b' }),
     );
     expect(questionRepo.save).toHaveBeenCalledWith([
       expect.objectContaining({ l2NodeId: 'n-b', treeId: 't-1' }),

@@ -98,11 +98,14 @@ export class RecommendationService {
       order: { sortOrder: 'ASC' },
     });
 
-    const result = await this.aiService.generateRecommendations({
-      portrait,
-      learningSkills: learningSkills.filter((s) => s.name),
-      oldRecommendations: oldRecs.map((r) => ({ title: r.title, reason: r.reason })),
-    });
+    const result = await this.aiService.generateRecommendations(
+      {
+        portrait,
+        learningSkills: learningSkills.filter((s) => s.name),
+        oldRecommendations: oldRecs.map((r) => ({ title: r.title, reason: r.reason })),
+      },
+      { userId },
+    );
 
     const now = new Date();
     const expireAt = new Date();

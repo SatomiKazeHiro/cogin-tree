@@ -54,7 +54,13 @@ export class InterviewService {
     for (const node of l2Nodes) {
       const nodeQuestions = questionsByNode.get(node.id) || [];
       if (nodeQuestions.length === 0) {
-        this.generateInBackground(treeId, tree.name, node, l1ById.get(node.parentId || '') || '');
+        this.generateInBackground(
+          treeId,
+          userId,
+          tree.name,
+          node,
+          l1ById.get(node.parentId || '') || '',
+        );
       }
       groups.push({
         nodeId: node.id,
@@ -69,6 +75,7 @@ export class InterviewService {
 
   private generateInBackground(
     treeId: string,
+    userId: string,
     treeName: string,
     node: TreeNode,
     l1Title: string,
@@ -77,7 +84,7 @@ export class InterviewService {
     if (existing) {
       return;
     }
-    const promise = this.generateForNode(treeId, treeName, node, l1Title)
+    const promise = this.generateForNode(treeId, userId, treeName, node, l1Title)
       .catch((err) =>
         this.logger.warn(`面试题生成失败 (nodeId=${node.id}): ${err}`),
       )
@@ -89,16 +96,20 @@ export class InterviewService {
 
   private async generateForNode(
     treeId: string,
+    userId: string,
     treeName: string,
     node: TreeNode,
     l1Title: string,
   ): Promise<void> {
-    const result = await this.aiService.generateInterviewQA({
-      treeName,
-      l1Title,
-      l2Title: node.title,
-      l2Description: node.description,
-    });
+    const result = await this.aiService.generateInterviewQA(
+      {
+        treeName,
+        l1Title,
+        l2Title: node.title,
+        l2Description: node.description,
+      },
+      { userId, treeId, nodeId: node.id },
+    );
 
     const questions = (result.questions || []).map((q, index) =>
       this.questionRepo.create({

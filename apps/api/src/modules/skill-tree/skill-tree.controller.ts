@@ -21,9 +21,10 @@ export class SkillTreeController {
   @UseGuards(JwtAuthGuard)
   @Post('knowledge-points')
   async generateKnowledgePoints(
+    @Request() req: { user: { userId: string } },
     @Body() dto: GenerateKnowledgePointsDto,
   ) {
-    return this.skillTreeService.generateKnowledgePoints(dto);
+    return this.skillTreeService.generateKnowledgePoints(dto, req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
