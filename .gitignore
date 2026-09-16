@@ -43,5 +43,8 @@ Thumbs.db
 # 本地数据库备份（pg_dump 产物，含数据，不入库）
 backups/
 
+# pnpm 本地 home（沙箱内绕过被拒写的全局目录，见实施计划「环境注意」）
+.pnpm-home/
+
 # Turbo cache
 .turbo/
