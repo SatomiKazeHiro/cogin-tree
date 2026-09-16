@@ -210,6 +210,34 @@ describe('ArtifactService', () => {
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
+  it('coreText 正由他人生成时不失败：等待其落库后继续生成练习题', async () => {
+    // 复现真实场景：用户点开 L2 后立刻切到「练习题」tab，
+    // 此时 coreText 的生成请求仍在飞行中（GENERATING），本请求拿不到 coreText 认领。
+    // 「等一会儿」不是失败 —— 既不能丢掉用户意图，也不能写 FAILED 污染状态机。
+    let coreClaimCalls = 0;
+    tasks.claim.mockImplementation(async (_nodeId: string, kind: ArtifactKind) => {
+      if (kind !== ArtifactKind.L3_CORE_TEXT) return true;
+      coreClaimCalls += 1;
+      if (coreClaimCalls === 1) {
+        // 模拟并发请求稍后把 coreText 落库
+        setTimeout(() => {
+          db.content = { id: 'c1', nodeId: 'n1', coreText: '他人生成的核心内容', version: 1 };
+        }, 5);
+        return false;
+      }
+      return true;
+    });
+
+    const view = await service.generateArtifact('n1', 'u1', ArtifactKind.L3_EXERCISES);
+
+    expect(tasks.markFailed).not.toHaveBeenCalled();
+    expect(ai.generateL3Exercises).toHaveBeenCalledWith(
+      expect.objectContaining({ coreText: '他人生成的核心内容' }),
+      expect.anything(),
+    );
+    expect(view.exercises.status).toBe(GenerationTaskStatus.READY);
+  });
+
   it('getArtifacts：无 task 行但内容存在 → 状态按 READY 呈现（兼容历史数据）', async () => {
     tasks.findForNode.mockResolvedValue([]);
     db.content = { id: 'c1', nodeId: 'n1', coreText: '已有', version: 1 };

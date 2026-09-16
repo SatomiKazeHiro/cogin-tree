@@ -18,6 +18,16 @@ import { TreeAccessService } from '../tree-access/tree-access.service';
 import { GenerationTaskService } from './generation-task.service';
 
 /**
+ * 等待「他人生成中的 coreText」落库的总预算；超过即显式失败。
+ * 取值依据：实测 coreText 平均 7.4s、最坏也不过十几秒，60s 足够覆盖并留出余量，
+ * 同时短于 120s 的陈旧认领阈值（避免与回收逻辑互相打架）。
+ */
+export const CORE_TEXT_WAIT_MS = 60_000;
+
+/** 等待 coreText 时的轮询间隔（同时充当认领重试间隔） */
+export const CORE_TEXT_POLL_MS = 1_000;
+
+/**
  * 产物编排：认领 → 前置依赖 → 调 AI → 单事务落库 → 标记状态。
  *
  * 职责边界：
@@ -57,18 +67,35 @@ export class ArtifactService {
     });
   }
 
-  /** 确保 coreText 就绪（供 codeExamples / exercises 作为前置依赖调用） */
+  /**
+   * 确保 coreText 就绪（供 codeExamples / exercises 作为前置依赖调用）。
+   *
+   * 关键：coreText 可能**正由另一个请求生成**（典型场景：用户点开 L2 后立刻切到「练习题」
+   * tab，两个请求并发）。此时认领会失败，但这是正常的并发状态、不是错误 —— 必须等对方
+   * 落库后继续。若直接抛错，会出现「对方生成成功、用户却拿到 500」，并给状态机写一条
+   * 假的 FAILED（内容根本不是 AI 生成失败，只是还没轮到读）。
+   *
+   * 轮询同时也在重试认领：若对方最终失败并把任务标记为 FAILED，下一次循环就能接管生成。
+   * 只有超过总预算才显式失败（此时对方大概率已僵死，120s 后陈旧认领会回收）。
+   */
   private async ensureCoreText(nodeId: string, userId: string): Promise<string> {
-    const existing = await this.loadContent(nodeId);
-    if (existing?.coreText) return existing.coreText;
+    const deadline = Date.now() + CORE_TEXT_WAIT_MS;
 
-    await this.generateArtifact(nodeId, userId, ArtifactKind.L3_CORE_TEXT);
+    for (;;) {
+      const existing = await this.loadContent(nodeId);
+      if (existing?.coreText) return existing.coreText;
 
-    const after = await this.loadContent(nodeId);
-    if (!after?.coreText) {
-      throw new InternalServerErrorException('coreText 生成后仍不可用');
+      // 认领成功 → 本次生成，返回值里就带刚写入的内容；认领失败 → 他人正在生成
+      const view = await this.generateArtifact(nodeId, userId, ArtifactKind.L3_CORE_TEXT);
+      if (view.coreText.text) return view.coreText.text;
+
+      if (Date.now() >= deadline) {
+        throw new InternalServerErrorException(
+          `等待 coreText 生成超时（${CORE_TEXT_WAIT_MS / 1000}s），请稍后重试`,
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, CORE_TEXT_POLL_MS));
     }
-    return after.coreText;
   }
 
   /**
