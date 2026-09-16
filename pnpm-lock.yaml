@@ -201,7 +201,7 @@ importers:
     dependencies:
       openai:
         specifier: ^4.52.0
-        version: 4.104.0(ws@8.21.0)
+        version: 4.104.0(ws@8.21.0)(zod@4.6.5)
     devDependencies:
       '@types/node':
         specifier: ^20.14.0
@@ -211,6 +211,10 @@ importers:
         version: 5.9.3
 
   packages/prompt-manager:
+    dependencies:
+      zod:
+        specifier: ^4
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: ^20.14.0
@@ -6517,6 +6521,9 @@ packages:
     resolution: {integrity: sha512-zK7YHHz4ZXpW89AHXUPbQVGKI7uvkd3hzusTdotCg1UxyaVtg0zFJSTfW/Dq5f7OBBVnq6cZIaC8Ti4hb6dtCA==}
     engines: {node: '>= 14'}
 
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+
 snapshots:
 
   '@angular-devkit/core@17.3.11(chokidar@3.6.0)':
@@ -11732,7 +11739,7 @@ snapshots:
       powershell-utils: 0.1.0
       wsl-utils: 0.3.1
 
-  openai@4.104.0(ws@8.21.0):
+  openai@4.104.0(ws@8.21.0)(zod@4.6.5):
     dependencies:
       '@types/node': 18.19.130
       '@types/node-fetch': 2.6.13
@@ -11743,6 +11750,7 @@ snapshots:
       node-fetch: 2.7.0
     optionalDependencies:
       ws: 8.21.0
+      zod: 4.6.5
     transitivePeerDependencies:
       - encoding
 
@@ -13488,3 +13496,5 @@ snapshots:
       archiver-utils: 5.0.2
       compress-commons: 6.0.2
       readable-stream: 4.7.0
+
+  zod@4.6.5: {}
