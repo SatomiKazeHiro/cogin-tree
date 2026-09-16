@@ -28,6 +28,7 @@
 | **浏览器 UI 验证** | `nuxt dev` + playwright-cli | 分块渲染 / 失败重试 / 按需生成全部实测（见 2.3） |
 | 数据清理 | 删除全部验证用户 | 领域表残留 0，审计表留存 27 行且关联列已 SET NULL（见 2.4） |
 | **上线后缺陷回归** | 真实操作发现 → 单测复现 → 真实 AI 并发复现 | **已修复**（见 2.5；`e92cd7d`） |
+| **既有 UI 缺陷回归** | 真实操作发现 → 浏览器 DOM 断言 | **已修复**（见 2.6；`c182d95`，非阶段 4 引入） |
 
 ---
 
@@ -139,6 +140,35 @@ coreText 阻塞、用户可自由切 tab），但旧实现紧接着回读 `node_
 
 > 该次复现的审计顺带证明了**契约层重试**在真实模型上生效：coreText 第一次返回 `parsed_ok=false`（7.3s），
 > 服务自动带 issues 以 0.3 温度重试，第二次通过（6.9s）—— 这也是等待预算必须覆盖「一次生成 + 一次重试」的原因。
+
+### 2.6 同一轮使用中发现的既有 UI 缺陷（非阶段 4 引入，已修复，提交 `c182d95`）
+
+**现象**：在左侧目录点某个节点（画布上该节点出现虚线描边），再点画布上另一个节点 → **两个节点同时带虚线描边**。
+
+**根因**：节点描边有**两个互不相干的来源**——
+`FlowNode` 的 `isOutlined = props.selected || props.highlighted`：
+
+- `highlighted` ← 页面状态 `selectedNodeId`（左侧目录点击 → `activeDirectoryNodeId`）
+- `selected` ← **Vue Flow 自身的点击选中态**（画布点击）
+
+两者指向不同节点时就会同时为真。这是阶段 4 之前就存在的实现（`highlighted-node-id` 与 `:selected` 的接线早于本阶段），
+只是这一轮手工测试才被发现。
+
+**修复**：聚焦态收敛为**唯一来源**（页面状态）：
+
+- `FlowNode` 不再接收 `selected`，`isOutlined` / `borderColorClass` 只看 `highlighted`；移除 `selectThisNode()` 与 `useVueFlow` 依赖
+- `VueFlowGraph` 新增 `@node-click` → `selectNode`、`@pane-click` → `clearSelection`；节点内按钮点击额外发 `focus`
+- `useSkillTreePage` 新增 `onCanvasNodeClick`（画布点击 ≡ 目录点击，只改聚焦、不移动视口、不开抽屉）与
+  `onCanvasPaneClick`（清手动聚焦；抽屉仍开着时自动回落到抽屉所属节点）
+
+**浏览器实测**（mock provider + 独立 dev server，真实 DOM 断言「虚线描边节点数」）：
+
+| 操作 | 期望 | 实测 |
+|---|---|---|
+| 点左侧目录 L2 A | 恰好 1 个聚焦 | `["A"]` |
+| 再点画布上 L2 B | 恰好 1 个聚焦，且换成 B | `["B"]`（修复前为 A+B 两个） |
+| 点画布空白 | 0 个聚焦 | `[]` |
+| 点画布 L2 C | 画布聚焦 = 目录高亮行 = C | 画布 `["C"]`／目录 `["C"]` |
 
 ---
 
