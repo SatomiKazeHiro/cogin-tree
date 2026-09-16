@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { NodeContent } from './node-content.entity';
 
@@ -12,6 +13,7 @@ export class Exercise {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ name: 'node_content_id' })
   nodeContentId: string;
 

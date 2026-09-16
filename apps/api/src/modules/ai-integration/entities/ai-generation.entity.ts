@@ -58,10 +58,10 @@ export class AiGeneration {
   errorDetail?: string | null;
 
   @Column({ name: 'prompt_tokens', nullable: true })
-  promptTokens?: number | null;
+  promptTokens?: number;
 
   @Column({ name: 'completion_tokens', nullable: true })
-  completionTokens?: number | null;
+  completionTokens?: number;
 
   @Column({ name: 'latency_ms' })
   latencyMs: number;

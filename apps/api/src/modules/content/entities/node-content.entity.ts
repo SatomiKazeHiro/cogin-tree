@@ -17,7 +17,8 @@ export class NodeContent {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'node_id', unique: true })
+  // 唯一性由下方 @OneToOne 的 JoinColumn 提供（原 unique: true 会再生成一条重复约束）
+  @Column({ name: 'node_id' })
   nodeId: string;
 
   @Column({ name: 'core_text', type: 'text' })

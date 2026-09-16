@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { InterviewDifficulty } from '@skill/shared';
 import { SkillTree } from '../../skill-tree/entities/skill-tree.entity';
@@ -15,10 +16,12 @@ export class InterviewQuestion {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ name: 'tree_id' })
   treeId: string;
 
   /** 题目所属的 L2 节点；节点删除时题目级联删除 */
+  @Index()
   @Column({ name: 'l2_node_id' })
   l2NodeId: string;
 

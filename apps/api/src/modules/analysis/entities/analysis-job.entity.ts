@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { AnalysisJobStatus, AnalysisType } from '@skill/shared';
 import { SkillTree } from '../../skill-tree/entities/skill-tree.entity';
@@ -14,6 +15,7 @@ export class AnalysisJob {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ name: 'tree_id' })
   treeId: string;
 

@@ -33,19 +33,19 @@ export class GenerationTask {
   attempts: number;
 
   @Column({ name: 'last_error', type: 'text', nullable: true })
-  lastError?: string | null;
+  lastError?: string;
 
   @Column({ name: 'prompt_version', nullable: true })
-  promptVersion?: string | null;
+  promptVersion?: string;
 
   @Column({ nullable: true })
-  model?: string | null;
+  model?: string;
 
   @Column({ name: 'started_at', nullable: true })
-  startedAt?: Date | null;
+  startedAt?: Date;
 
   @Column({ name: 'finished_at', nullable: true })
-  finishedAt?: Date | null;
+  finishedAt?: Date;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

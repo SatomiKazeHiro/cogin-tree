@@ -16,7 +16,8 @@ export class UserProfile {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id', unique: true })
+  // 唯一性由下方 @OneToOne 的 JoinColumn 提供（原 unique: true 会再生成一条重复约束）
+  @Column({ name: 'user_id' })
   userId: string;
 
   @Column({ name: 'computed_portrait', type: 'jsonb', nullable: true })

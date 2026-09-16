@@ -90,7 +90,18 @@ const UNIQUE_CONSTRAINTS: ReadonlyArray<readonly [string, string[]]> = [
   ['node_contents', ['node_id']],
 ];
 
-const MIN_NON_UNIQUE_INDEXES = 20;
+/**
+ * 非唯一索引的目标数量（对应设计文档 5.3 的索引清单）。
+ * 逐项来源：skill_trees(owner_id)、tree_nodes(parent_id)/(tree_id,level)、code_examples(node_content_id)、
+ * exercises(node_content_id)、learning_records(user_id)/(skill_tree_id)、
+ * node_learning_records(node_id)/(user_id,skill_tree_id)、recommendations(user_id,is_active)、
+ * interview_questions(tree_id)/(l2_node_id)、analysis_jobs(tree_id)、
+ * suggested_changes(job_id)/(status)、generation_tasks(status)、
+ * ai_generations(created_at)/(stage,created_at)/(tree_id,created_at) = 19
+ *
+ * 注意：这是对阶段 1 schema 的精确断言，后续阶段若有意增删索引需同步更新此常量。
+ */
+const EXPECTED_NON_UNIQUE_INDEXES = 19;
 
 async function main() {
   const client = new Client({
@@ -170,8 +181,8 @@ async function main() {
       where schemaname = 'public' and indexdef not like '%UNIQUE%'`,
   );
   check(
-    Number(idx[0].n) >= MIN_NON_UNIQUE_INDEXES,
-    `非唯一索引数量 >= ${MIN_NON_UNIQUE_INDEXES}（实际 ${idx[0].n}）`,
+    Number(idx[0].n) === EXPECTED_NON_UNIQUE_INDEXES,
+    `非唯一索引数量 == ${EXPECTED_NON_UNIQUE_INDEXES}（实际 ${idx[0].n}）`,
   );
 
   await client.end();
