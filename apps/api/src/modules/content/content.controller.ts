@@ -5,10 +5,12 @@ import {
   Patch,
   Param,
   Body,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ContentService } from './content.service';
+import { UpdateNodeContentDto } from './dto/update-node-content.dto';
 import { NodeContent } from './entities/node-content.entity';
 
 @Controller('nodes/:id/content')
@@ -41,14 +43,25 @@ export class ContentController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  async generate(@Param('id') nodeId: string) {
-    return this.toResponse(await this.contentService.generateContent(nodeId));
+  async generate(
+    @Request() req: { user: { userId: string } },
+    @Param('id') nodeId: string,
+  ) {
+    return this.toResponse(
+      await this.contentService.generateContent(nodeId, req.user.userId),
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  async get(@Param('id') nodeId: string) {
-    const content = await this.contentService.getContentByNodeId(nodeId);
+  async get(
+    @Request() req: { user: { userId: string } },
+    @Param('id') nodeId: string,
+  ) {
+    const content = await this.contentService.getContentByNodeId(
+      nodeId,
+      req.user.userId,
+    );
     if (!content) {
       return null;
     }
@@ -57,7 +70,13 @@ export class ContentController {
 
   @UseGuards(JwtAuthGuard)
   @Patch()
-  async update(@Param('id') nodeId: string, @Body() dto: { coreText?: string }) {
-    return this.toResponse(await this.contentService.updateContent(nodeId, dto));
+  async update(
+    @Request() req: { user: { userId: string } },
+    @Param('id') nodeId: string,
+    @Body() dto: UpdateNodeContentDto,
+  ) {
+    return this.toResponse(
+      await this.contentService.updateContent(nodeId, dto, req.user.userId),
+    );
   }
 }

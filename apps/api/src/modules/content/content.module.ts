@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiIntegrationModule } from '../ai-integration/ai-integration.module';
+import { TreeAccessModule } from '../tree-access/tree-access.module';
 import { NodeContent } from './entities/node-content.entity';
 import { Exercise } from './entities/exercise.entity';
 import { CodeExample } from './entities/code-example.entity';
@@ -13,6 +14,7 @@ import { ContentController } from './content.controller';
   imports: [
     TypeOrmModule.forFeature([NodeContent, Exercise, CodeExample, TreeNode, SkillTree]),
     AiIntegrationModule,
+    TreeAccessModule,
   ],
   providers: [ContentService],
   controllers: [ContentController],
