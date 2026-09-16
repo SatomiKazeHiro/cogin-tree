@@ -84,12 +84,37 @@ export class AnalysisService {
 
     const input = { treeName: tree.name, treeType: tree.type, nodes: nodeList };
 
+    // 去重：把尚未处理的建议标题喂给 AI，避免重复建议
+    const pending = await this.findPendingSuggestions(treeId);
+    const pendingAddTitles = pending
+      .filter((s) => s.action === SuggestionAction.ADD)
+      .map((s) => s.title);
+    const pendingExpireTitles = pending
+      .filter((s) => s.action === SuggestionAction.EXPIRE)
+      .map((s) => s.title);
+
     const [discoverResult, expireResult] = await Promise.all([
-      this.runJob(treeId, AnalysisType.DISCOVER_NEW, 'discover-new', input, () =>
-        this.aiService.generateDiscoverNew(input),
+      this.runJob(
+        treeId,
+        AnalysisType.DISCOVER_NEW,
+        'discover-new',
+        { ...input, existingSuggestions: pendingAddTitles },
+        () =>
+          this.aiService.generateDiscoverNew({
+            ...input,
+            existingSuggestions: pendingAddTitles,
+          }),
       ),
-      this.runJob(treeId, AnalysisType.CHECK_EXPIRE, 'check-expire', input, () =>
-        this.aiService.generateCheckExpire(input),
+      this.runJob(
+        treeId,
+        AnalysisType.CHECK_EXPIRE,
+        'check-expire',
+        { ...input, existingSuggestions: pendingExpireTitles },
+        () =>
+          this.aiService.generateCheckExpire({
+            ...input,
+            existingSuggestions: pendingExpireTitles,
+          }),
       ),
     ]);
 

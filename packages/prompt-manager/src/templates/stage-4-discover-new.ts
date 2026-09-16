@@ -4,6 +4,8 @@ export interface DiscoverNewInput {
   treeName: string;
   treeType?: string;
   nodes: { level: number; title: string; description?: string; parentTitle?: string }[];
+  /** 已提出过但尚未处理的建议标题，避免重复建议 */
+  existingSuggestions?: string[];
 }
 
 export interface DiscoverNewSuggestion {
@@ -43,7 +45,7 @@ export const stage4DiscoverNew: PromptTemplate<DiscoverNewInput, DiscoverNewOutp
 - 模式：${input.treeType || 'ENTRY'}
 - 现有节点：
 ${nodeList || '（暂无节点）'}
-
+${input.existingSuggestions?.length ? `\n以下主题已经建议过但尚未处理，不要重复建议（包括语义重复的换说法）：\n${input.existingSuggestions.map((t) => `- ${t}`).join('\n')}\n` : ''}
 要求：
 1. 建议 1-5 个缺失的 L2 级学习主题；只有当现有 L1 完全无法容纳时，才建议新增 L1（parentTitle 为 null）。
 2. 每条建议包含：parentTitle（建议挂载的 L1 标题，必须与上方现有 L1 标题逐字一致；新增 L1 时为 null）、title（主题名，5-15 字）、description（一句话描述）、reason（为什么值得补充，结合趋势一句话说明）。

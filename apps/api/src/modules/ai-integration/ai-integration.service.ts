@@ -121,6 +121,7 @@ export class AiIntegrationService {
     treeName: string;
     treeType?: string;
     nodes: { level: number; title: string; description?: string; parentTitle?: string }[];
+    existingSuggestions?: string[];
   }): Promise<{
     suggestions: { parentTitle?: string | null; title: string; description: string; reason: string }[];
   }> {
@@ -136,6 +137,7 @@ export class AiIntegrationService {
     treeName: string;
     treeType?: string;
     nodes: { level: number; title: string; description?: string; parentTitle?: string }[];
+    existingSuggestions?: string[];
   }): Promise<{
     suggestions: { nodeTitle: string; expireLevel: 1 | 2 | 3; reason: string }[];
   }> {

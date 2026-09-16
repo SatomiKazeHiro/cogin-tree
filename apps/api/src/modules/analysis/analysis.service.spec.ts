@@ -152,6 +152,7 @@ describe('AnalysisService', () => {
 
   describe('analyze（标题匹配与降级）', () => {
     it('ADD 匹配父标题 / EXPIRE 匹配节点标题，匹配不到的 EXPIRE 丢弃', async () => {
+      suggestionRepo.find.mockResolvedValue([]);
       const l1 = { id: 'l1', title: '前端基础', level: NodeLevel.L1, sortOrder: 0 };
       const l2 = {
         id: 'l2a',
@@ -202,6 +203,7 @@ describe('AnalysisService', () => {
     });
 
     it('AI 全部失败时：job 标记 FAILED，返回空建议且不抛错', async () => {
+      suggestionRepo.find.mockResolvedValue([]);
       skillTreeService.findById.mockResolvedValue({
         id: 't-1',
         name: '前端',

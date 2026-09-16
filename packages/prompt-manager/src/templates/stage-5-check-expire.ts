@@ -4,6 +4,8 @@ export interface CheckExpireInput {
   treeName: string;
   treeType?: string;
   nodes: { level: number; title: string; description?: string; parentTitle?: string }[];
+  /** 已提出过但尚未处理的建议标题，避免重复建议 */
+  existingSuggestions?: string[];
 }
 
 export interface CheckExpireSuggestion {
@@ -41,7 +43,7 @@ export const stage5CheckExpire: PromptTemplate<CheckExpireInput, CheckExpireOutp
 - 技能树名称：${input.treeName}
 - 现有节点：
 ${nodeList || '（暂无节点）'}
-
+${input.existingSuggestions?.length ? `\n以下节点已经被标记过过期建议但尚未处理，不要重复提出：\n${input.existingSuggestions.map((t) => `- ${t}`).join('\n')}\n` : ''}
 过期等级定义：
 - 1（轻微）：内容主体仍可用，但部分细节（版本、API、工具链）已有更新；
 - 2（明显）：最佳实践已更替，继续按旧方式学习会走弯路；
