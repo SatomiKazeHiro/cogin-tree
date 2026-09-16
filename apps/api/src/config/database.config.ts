@@ -17,6 +17,7 @@ import { InterviewQuestion } from '../modules/interview/entities/interview-quest
 import { AnalysisJob } from '../modules/analysis/entities/analysis-job.entity';
 import { SuggestedChange } from '../modules/analysis/entities/suggested-change.entity';
 import { InitialSchema1789536289878 } from '../migrations/1789536289878-InitialSchema';
+import { CascadeDeleteUserProfile1789537862755 } from '../migrations/1789537862755-CascadeDeleteUserProfile';
 
 export function databaseConfig(): TypeOrmModuleOptions {
   return {
@@ -47,7 +48,10 @@ export function databaseConfig(): TypeOrmModuleOptions {
     ],
     // schema 变更一律走 migration（见 apps/api/src/migrations/）
     synchronize: false,
-    migrations: [InitialSchema1789536289878],
+    migrations: [
+      InitialSchema1789536289878,
+      CascadeDeleteUserProfile1789537862755,
+    ],
     logging: process.env.NODE_ENV === 'development',
   };
 }

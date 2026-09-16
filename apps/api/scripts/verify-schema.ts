@@ -175,7 +175,20 @@ async function main() {
     check(rows.some((r) => r.cols === wanted), `${table} 唯一约束 (${wanted})`);
   }
 
-  // 5. 索引数量
+  // 5. 不允许残留 NO ACTION 外键（删父行必须要么 CASCADE 要么 SET NULL，否则运行期必报 500）
+  const { rows: noAction } = await client.query<{ tbl: string; col: string }>(
+    `select conrelid::regclass::text as tbl, a.attname as col
+       from pg_constraint c
+       join unnest(c.conkey) k on true
+       join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k
+      where c.contype = 'f' and c.confdeltype = 'a'`,
+  );
+  check(
+    noAction.length === 0,
+    `无 NO ACTION 外键（实际 ${noAction.length} 个${noAction.length ? '：' + noAction.map((r) => `${r.tbl}.${r.col}`).join(', ') : ''}）`,
+  );
+
+  // 6. 索引数量
   const { rows: idx } = await client.query<{ n: string }>(
     `select count(*) as n from pg_indexes
       where schemaname = 'public' and indexdef not like '%UNIQUE%'`,
