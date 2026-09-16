@@ -1,4 +1,6 @@
-import { NodeLevel, NodeStatus, NodeLearningStatus } from '@skill/shared';export interface FlowSkillTree {
+import { NodeLevel, NodeStatus, NodeLearningStatus } from '@skill/shared';
+
+export interface FlowSkillTree {
   id: string;
   name: string;
   description?: string;
