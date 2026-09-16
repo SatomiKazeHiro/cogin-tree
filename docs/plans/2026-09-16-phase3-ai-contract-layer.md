@@ -18,6 +18,9 @@
 - Node.js >= 20；pnpm 9.0.0；zod 只加到 `packages/prompt-manager`（apps/api 不直接依赖它）
 - **沙箱内 pnpm 需覆盖 `PNPM_HOME`**：`$env:PNPM_HOME = Join-Path (Get-Location) ".pnpm-home"`
 - **`pnpm <script>` 不可用**（打包二进制 spawnSync 捕获输出被沙箱拒绝 → EPERM）。一律直接调用 `node_modules/.bin/*`
+  - **注意 bin 的位置**：根 `node_modules/.bin` **只有 `tsc`**；`ts-node` / `jest` / `nest` / `typeorm` 都装在
+    `apps/api/node_modules/.bin`（pnpm 严格隔离）。从 `packages/*` 里调用 ts-node 必须写成
+    `..\..\apps\api\node_modules\.bin\ts-node`
 - **构建 shared / prompt-manager 用 tsc 直接调用**（不用 `pnpm --filter X build`，它内含 `rm -rf`）：
   - `packages/shared`：`tsc -p packages/shared/tsconfig.json && tsc -p packages/shared/tsconfig.cjs.json`
   - `packages/prompt-manager`：`tsc -p packages/prompt-manager/tsconfig.json`
@@ -93,10 +96,19 @@ Task 1 要装 zod，而 pnpm store 在工作区外（`D:\.pnpm-store\v3`），�
 
 ```powershell
 $env:PNPM_HOME = Join-Path (Get-Location) ".pnpm-home"
-pnpm --filter prompt-manager add zod@^4
+pnpm --filter prompt-manager add zod@^4 --store-dir "D:\.pnpm-store\v3"
 ```
-Expected: `packages/prompt-manager/package.json` 出现 `"zod": "^4.x"`，且 `packages/prompt-manager/node_modules/zod` 存在。
-**若被沙箱拒绝写入 store**：对这条命令发起一次 `sandbox_permissions` 升级。
+Expected: `packages/prompt-manager/package.json` 出现 `"zod": "^4"`，且 `packages/prompt-manager/node_modules/zod` 存在。
+
+> **两个必须注意的点（已在执行中实测踩到）**：
+> 1. **必须加 `--store-dir "D:\.pnpm-store\v3"`**：覆盖 `PNPM_HOME` 会连带把默认 store 改成
+>    `.pnpm-home/store/v3`，与既有 `node_modules` 的链接来源不一致 → `ERR_PNPM_UNEXPECTED_STORE`。
+> 2. 该命令需要**写工作区外的 store** 且 pnpm 要 spawn node（管道 stdio），在 workspace-write 下会
+>    分别撞上「拒绝访问」与 `spawnSync EPERM`。**对这条命令发起一次 `sandbox_permissions` 升级**即可通过。
+>
+> 安装后会看到 `openai@4.104.0` 的 peer 警告（它要 zod ^3.23.8，现有 4.6.5）。
+> 经核实**无实际影响**：openai 主入口不在加载期 `require('zod')`，且 `packages/ai-provider/node_modules`
+> 下没有 zod。但**禁止使用 `openai/helpers/zod`**（该入口需要 zod 3 API）。
 
 - [ ] **Step 2: 写失败自检（基座机制）**
 
@@ -206,7 +218,7 @@ console.log('\nSELFCHECK OK');
 
 ```powershell
 cd packages/prompt-manager
-..\..\node_modules\.bin\ts-node src/prompt-engine.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/prompt-engine.selfcheck.ts
 ```
 Expected: FAIL —— 编译期报 `defineTemplate` / `AiContractError` 不存在（ts-node 会先类型检查再执行），
 或运行期抛 `defineTemplate is not a function`。任何一种即算「红」。
@@ -348,7 +360,7 @@ export function stageNameOf(template: PromptTemplate<unknown, unknown>): string 
 
 ```powershell
 cd packages/prompt-manager
-..\..\node_modules\.bin\ts-node src/prompt-engine.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/prompt-engine.selfcheck.ts
 ```
 Expected: 全部 `PASS` + `SELFCHECK OK`（8 条断言）
 
@@ -414,7 +426,7 @@ console.log('\nSELFCHECK OK');
 
 ```powershell
 cd packages/prompt-manager
-..\..\node_modules\.bin\ts-node src/prompt-manager.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/prompt-manager.selfcheck.ts
 ```
 Expected: FAIL —— `PROMPT_STAGES` 未导出。
 
@@ -492,7 +504,7 @@ export { stage0KnowledgePoints, stage1L1Outline, stage2L2Nodes, stage3L3Content,
 
 ```powershell
 cd packages/prompt-manager
-..\..\node_modules\.bin\ts-node src/prompt-manager.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/prompt-manager.selfcheck.ts
 ..\..\node_modules\.bin\tsc -p tsconfig.json --noEmit
 ```
 Expected: `SELFCHECK OK`；`tsc` 无错误（若 `parse` 推导不生效，`parsed.points` 会报类型错误）
@@ -597,7 +609,7 @@ console.log('\nSELFCHECK OK');
 
 ```powershell
 cd packages/prompt-manager
-..\..\node_modules\.bin\ts-node src/stages.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/stages.selfcheck.ts
 ```
 Expected: FAIL（stage 0 的 schema 尚未定义 → `PromptManager.parse` 内部报错）
 
@@ -821,7 +833,7 @@ export const stage3L3Content = defineTemplate<L3ContentInput, L3ContentOutput>({
 
 ```powershell
 cd packages/prompt-manager
-..\..\node_modules\.bin\ts-node src/stages.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/stages.selfcheck.ts
 ..\..\node_modules\.bin\tsc -p tsconfig.json --noEmit
 ```
 Expected: 全部 `PASS` + `SELFCHECK OK`；`tsc` 无错误
@@ -927,7 +939,7 @@ expectContractError(
 
 ```powershell
 cd packages/prompt-manager
-..\..\node_modules\.bin\ts-node src/stages.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/stages.selfcheck.ts
 ```
 Expected: FAIL（这 5 个 stage 的 schema 还没接上）
 
@@ -1213,12 +1225,43 @@ export const stage8Recommendations = defineTemplate<RecommendationsInput, Recomm
 
 ```powershell
 cd packages/prompt-manager
-..\..\node_modules\.bin\ts-node src/stages.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/stages.selfcheck.ts
 ..\..\node_modules\.bin\tsc -p tsconfig.json --noEmit
 ```
 Expected: 全部 `PASS` + `SELFCHECK OK`
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 5: 收口 —— 把 `PromptTemplate.schema` 从可选改为必填**
+
+此时 9 个 stage 已全部经 `defineTemplate` 迁移完毕，可以收紧类型（T1 把它设为可选，只是为了
+让 T1~T3 期间仍有未迁移的旧模板能编译）。
+
+`packages/prompt-manager/src/prompt-engine.ts`：
+
+```ts
+export interface PromptTemplate<TInput, TOutput> {
+  version: string;
+  /** 契约唯一来源：既做运行时校验，又派生提示词里的格式说明 */
+  schema: z.ZodType<TOutput>;
+  build: (input: TInput) => string;
+  parse: (raw: string) => TOutput;
+}
+```
+
+`PromptManager.schemaOf` 保留可选判断并抛错（这样即使将来漏了 schema 也能立刻发现）：
+```ts
+  static schemaOf(stage: PromptStage): z.ZodType {
+    const schema = PROMPT_TEMPLATES[stage].schema;
+    if (!schema) {
+      throw new Error(`stage ${stage} 缺少 schema 契约`);
+    }
+    return schema;
+  }
+```
+
+验证：`..\..\node_modules\.bin\tsc -p tsconfig.json --noEmit` 通过（若有 stage 漏迁移，此处会报错）；
+再跑 `cd ../../apps/api; node_modules\.bin\tsc --noEmit`。
+
+- [ ] **Step 6: 提交**
 
 ```powershell
 git add packages/prompt-manager
@@ -2249,9 +2292,9 @@ node_modules\.bin\tsc --noEmit
 node_modules\.bin\jest --runInBand
 node_modules\.bin\ts-node scripts/verify-schema.ts
 cd ../../packages/prompt-manager
-..\..\node_modules\.bin\ts-node src/prompt-engine.selfcheck.ts
-..\..\node_modules\.bin\ts-node src/prompt-manager.selfcheck.ts
-..\..\node_modules\.bin\ts-node src/stages.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/prompt-engine.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/prompt-manager.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node src/stages.selfcheck.ts
 ```
 Expected: `tsc` 0；jest 全绿；`SCHEMA OK`；三个 `SELFCHECK OK`
 
