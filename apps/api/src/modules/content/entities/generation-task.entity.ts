@@ -33,13 +33,14 @@ export class GenerationTask {
   attempts: number;
 
   @Column({ name: 'last_error', type: 'text', nullable: true })
-  lastError?: string;
+  lastError?: string | null;
 
   @Column({ name: 'prompt_version', nullable: true })
   promptVersion?: string;
 
-  @Column({ nullable: true })
-  model?: string;
+  /** 显式 type 是必需的：没有它时 `string | null` 会让 design:type 退化成 Object，TypeORM 启动即报错 */
+  @Column({ type: 'varchar', nullable: true })
+  model?: string | null;
 
   @Column({ name: 'started_at', nullable: true })
   startedAt?: Date;
