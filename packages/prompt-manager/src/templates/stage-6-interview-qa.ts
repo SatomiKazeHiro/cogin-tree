@@ -1,4 +1,5 @@
-import { PromptTemplate, extractJson } from '../prompt-engine';
+import * as z from 'zod';
+import { defineTemplate } from '../prompt-engine';
 
 export interface InterviewQAInput {
   treeName: string;
@@ -7,23 +8,30 @@ export interface InterviewQAInput {
   l2Description?: string;
 }
 
-export interface InterviewQuestionItem {
-  question: string;
-  answer: string;
-  difficulty: string;
-}
-
-export interface InterviewQAOutput {
-  questions: InterviewQuestionItem[];
-}
+export const interviewQaSchema = z.object({
+  questions: z
+    .array(
+      z.object({
+        question: z.string().min(1).max(500).meta({ description: '面试官会真实提出的问题' }),
+        answer: z.string().min(1).max(1000).meta({ description: '要点式参考答案，200 字以内' }),
+        difficulty: z.enum(['EASY', 'MEDIUM', 'HARD']).meta({ description: '难度' }),
+      }),
+    )
+    .min(1)
+    .max(8)
+    .meta({ description: '面试题列表，3-5 道为宜' }),
+});
+export type InterviewQAOutput = z.infer<typeof interviewQaSchema>;
 
 /**
  * Stage 6：面试 Q&A（按 L2 节点出题）
  * 每道题归属调用方指定的 L2 节点，由后端负责落库关联。
  */
-export const stage6InterviewQA: PromptTemplate<InterviewQAInput, InterviewQAOutput> = {
-  version: '2.0.0',
-  build: (input) => `
+export const stage6InterviewQA = defineTemplate<InterviewQAInput, InterviewQAOutput>({
+  version: '3.0.0',
+  stage: 'interview-qa',
+  schema: interviewQaSchema,
+  body: (input) => `
 角色：你是一位资深技术面试官，擅长围绕单个知识点设计高质量的面试题。
 任务：针对技能树「${input.treeName}」中的一个学习主题，生成一组面试 Q&A。
 
@@ -36,18 +44,5 @@ export const stage6InterviewQA: PromptTemplate<InterviewQAInput, InterviewQAOutp
 2. difficulty 只能是 EASY、MEDIUM 或 HARD，三种难度混合（至少包含一道 EASY 和一道 MEDIUM 以上）。
 3. question 是面试官会真实提出的问题，具体、可回答，避免空泛。
 4. answer 是要点式参考答案，200 字以内，条理清晰，可用分号或顿号分隔要点。
-5. 输出必须是合法 JSON，不要包含 Markdown 代码块外的任何内容。
-
-输出格式：
-{
-  "questions": [
-    {
-      "question": "...",
-      "answer": "...",
-      "difficulty": "EASY"
-    }
-  ]
-}
 `,
-  parse: extractJson,
-};
+});

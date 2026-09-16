@@ -1,4 +1,5 @@
-import { PromptTemplate, extractJson } from '../prompt-engine';
+import * as z from 'zod';
+import { defineTemplate } from '../prompt-engine';
 
 export interface RecommendationInput {
   portrait: {
@@ -12,25 +13,41 @@ export interface RecommendationInput {
   oldRecommendations: { title: string; reason: string }[];
 }
 
-export interface RecommendationItem {
-  title: string;
-  description: string;
-  reason: string;
-  matchTags: string[];
-  suggestedMode: string;
-  keywords: string[];
-}
+export const recommendationsSchema = z.object({
+  recommendations: z
+    .array(
+      z.object({
+        title: z.string().min(1).max(60).meta({ description: '学习方向名称' }),
+        description: z.string().min(1).max(200).meta({ description: '一句话描述' }),
+        reason: z
+          .string()
+          .min(1)
+          .max(300)
+          .meta({ description: '推荐理由，需指明匹配了用户肖像的哪个维度' }),
+        matchTags: z
+          .array(z.string().min(1).max(20))
+          .max(5)
+          .meta({ description: '匹配维度标签，只能从 身份/兴趣/目标/学习风格 中选取' }),
+        suggestedMode: z
+          .enum(['ENTRY', 'EXPERT', 'INTERVIEW'])
+          .meta({ description: '建议从哪个模式开始' }),
+        keywords: z
+          .array(z.string().min(1).max(30))
+          .max(10)
+          .meta({ description: '该方向下值得优先学习的知识点或子方向' }),
+      }),
+    )
+    .min(1)
+    .max(10)
+    .meta({ description: '推荐列表，最多 10 条' }),
+});
+export type RecommendationsOutput = z.infer<typeof recommendationsSchema>;
 
-export interface RecommendationsOutput {
-  recommendations: RecommendationItem[];
-}
-
-export const stage8Recommendations: PromptTemplate<
-  RecommendationInput,
-  RecommendationsOutput
-> = {
-  version: '1.0.0',
-  build: (input) => `
+export const stage8Recommendations = defineTemplate<RecommendationInput, RecommendationsOutput>({
+  version: '2.0.0',
+  stage: 'recommendations',
+  schema: recommendationsSchema,
+  body: (input) => `
 角色：你是一位个性化学习路径规划师。
 任务：基于用户的肖像和当前学习情况，推荐最适合的学习方向。
 
@@ -48,7 +65,7 @@ ${input.learningSkills.length ? input.learningSkills.map((s) => `  - ${s.name}�
 ${input.oldRecommendations.length ? input.oldRecommendations.map((r) => `  - ${r.title}：${r.reason}`).join('\n') : '  无'}
 
 要求：
-1. 输出恰好 6-10 个推荐方向。
+1. 输出 6-10 个推荐方向，最多不超过 10 个；宁缺勿滥，不要为凑数而堆砌。
 2. 综合考量用户肖像、已有学习技能、旧推荐。
 3. 排除用户已经在学的方向。
 4. 从旧推荐中保留仍适合的，补充新的。
@@ -57,21 +74,5 @@ ${input.oldRecommendations.length ? input.oldRecommendations.map((r) => `  - ${r
 7. matchTags 只能从「身份」「兴趣」「目标」「学习风格」中选取相关标签。
 8. suggestedMode 只能是 ENTRY、EXPERT 或 INTERVIEW 之一。
 9. 每个推荐需给出 3-6 个关键词（keywords），代表该方向下值得优先学习的知识点或子方向，供用户后续编辑。
-10. 输出必须是合法 JSON，不要包含 Markdown 代码块外的任何内容。
-
-输出格式：
-{
-  "recommendations": [
-    {
-      "title": "...",
-      "description": "...",
-      "reason": "...",
-      "matchTags": ["兴趣", "目标"],
-      "suggestedMode": "ENTRY",
-      "keywords": ["...", "..."]
-    }
-  ]
-}
 `,
-  parse: extractJson,
-};
+});

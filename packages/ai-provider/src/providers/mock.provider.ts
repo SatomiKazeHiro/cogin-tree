@@ -27,6 +27,7 @@ export class MockProvider implements IAIProvider {
             reason: `基于你的兴趣标签「${interestTags[0]}」和目标「${goalTags[0]}」推荐。`,
             matchTags: ['兴趣', '目标'],
             suggestedMode: 'ENTRY',
+            keywords: ['核心概念', '实战案例', '性能优化'],
           },
           {
             title: `${goalTags[0]} 专项突破`,
@@ -34,6 +35,7 @@ export class MockProvider implements IAIProvider {
             reason: `与你当前的主要学习目标「${goalTags[0]}」高度匹配。`,
             matchTags: ['目标'],
             suggestedMode: 'EXPERT',
+            keywords: ['核心知识点', '常见面试题', '实战演练'],
           },
           {
             title: '系统架构设计基础',
@@ -41,6 +43,7 @@ export class MockProvider implements IAIProvider {
             reason: '适合有基础的同学扩展技术广度。',
             matchTags: ['兴趣', '学习风格'],
             suggestedMode: 'ENTRY',
+            keywords: ['设计原则', '常用架构模式', '分层与解耦'],
           },
           {
             title: 'AI 应用开发入门',
@@ -48,6 +51,7 @@ export class MockProvider implements IAIProvider {
             reason: '当前热门方向，适合动手实践型学习者。',
             matchTags: ['兴趣', '学习风格'],
             suggestedMode: 'ENTRY',
+            keywords: ['大模型 API', '提示词工程', '应用集成'],
           },
           {
             title: 'DevOps 与持续交付',
@@ -55,6 +59,7 @@ export class MockProvider implements IAIProvider {
             reason: '补足工程化能力，提升全栈竞争力。',
             matchTags: ['目标'],
             suggestedMode: 'EXPERT',
+            keywords: ['CI/CD', '容器化', '监控与告警'],
           },
           {
             title: '技术写作与知识管理',
@@ -62,7 +67,30 @@ export class MockProvider implements IAIProvider {
             reason: '帮助形成长期学习习惯，适合系统掌握目标。',
             matchTags: ['学习风格'],
             suggestedMode: 'INTERVIEW',
+            keywords: ['笔记体系', '知识沉淀', '写作方法'],
           },
+        ],
+      });
+    }
+
+    // Stage 0 知识点清单：必须放在 L1/L2 分支之前 ——
+    // 该 prompt 正文里提到"再被你归纳成 L1 学习大纲"，否则会被下面的 L1 分支截胡（返回 nodes 而非 points）。
+    if (prompt.includes('知识点清单')) {
+      const title = this.extractLine(prompt, '技能方向名称：') || '该技能方向';
+      return JSON.stringify({
+        points: [
+          `${title}基础概念`,
+          `${title}核心工具链`,
+          '模块化与工程化规范',
+          '构建工具与打包原理',
+          '依赖管理与版本策略',
+          '代码规范与静态检查',
+          '单元测试与集成测试',
+          '性能分析与优化',
+          '持续集成与自动化发布',
+          '多包仓库协作',
+          '错误监控与日志',
+          '安全与依赖审计',
         ],
       });
     }

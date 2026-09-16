@@ -2,13 +2,8 @@ import * as z from 'zod';
 
 export interface PromptTemplate<TInput, TOutput> {
   version: string;
-  /**
-   * 契约唯一来源：既做运行时校验，又派生提示词里的格式说明。
-   *
-   * 迁移期可选：9 个 stage 在 T3/T4 才逐个迁到 defineTemplate，期间仍有用 extractJson 的旧模板。
-   * T4 结束时收口为必填（见计划 Task 4 的收口步骤）。
-   */
-  schema?: z.ZodType<TOutput>;
+  /** 契约唯一来源：既做运行时校验，又派生提示词里的格式说明 */
+  schema: z.ZodType<TOutput>;
   build: (input: TInput) => string;
   parse: (raw: string) => TOutput;
 }

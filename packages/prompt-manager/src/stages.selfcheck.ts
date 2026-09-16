@@ -75,6 +75,120 @@ expectContractError(
 );
 expectContractError('l3-content', '{"coreText":"x"}', 'l3-content 缺 exercises 被拒');
 
+// ── stage 4：discover-new ─────────────────────────────────────────
+assert(
+  PromptManager.parse(
+    'discover-new',
+    JSON.stringify({ suggestions: [{ parentTitle: 'L1', title: 'T', description: 'd', reason: 'r' }] }),
+  ).suggestions.length === 1,
+  'discover-new 正例',
+);
+assert(
+  PromptManager.parse(
+    'discover-new',
+    JSON.stringify({ suggestions: [{ parentTitle: null, title: 'T', description: 'd', reason: 'r' }] }),
+  ).suggestions[0].parentTitle === null,
+  'discover-new 允许 parentTitle=null（新增 L1）',
+);
+assert(
+  PromptManager.parse('discover-new', '{"suggestions":[]}').suggestions.length === 0,
+  'discover-new 允许空数组（提示词允许"没有也不硬凑"）',
+);
+expectContractError('discover-new', '{"suggestions":[{"title":"T"}]}', 'discover-new 缺字段被拒');
+
+// ── stage 5：check-expire ─────────────────────────────────────────
+assert(
+  PromptManager.parse(
+    'check-expire',
+    JSON.stringify({ suggestions: [{ nodeTitle: 'N', expireLevel: 2, reason: 'r' }] }),
+  ).suggestions[0].expireLevel === 2,
+  'check-expire 正例',
+);
+expectContractError(
+  'check-expire',
+  JSON.stringify({ suggestions: [{ nodeTitle: 'N', expireLevel: 4, reason: 'r' }] }),
+  'check-expire expireLevel 越界被拒',
+);
+expectContractError(
+  'check-expire',
+  JSON.stringify({ suggestions: [{ nodeTitle: 'N', reason: 'r' }] }),
+  'check-expire 缺 expireLevel 被拒',
+);
+
+// ── stage 6：interview-qa ─────────────────────────────────────────
+assert(
+  PromptManager.parse(
+    'interview-qa',
+    JSON.stringify({ questions: [{ question: 'Q', answer: 'A', difficulty: 'HARD' }] }),
+  ).questions[0].difficulty === 'HARD',
+  'interview-qa 正例',
+);
+expectContractError(
+  'interview-qa',
+  JSON.stringify({ questions: [{ question: 'Q', answer: 'A', difficulty: 'NIGHTMARE' }] }),
+  'interview-qa difficulty 非枚举被拒',
+);
+expectContractError('interview-qa', '{"questions":[]}', 'interview-qa 空数组被拒');
+
+// ── stage 7：portrait ─────────────────────────────────────────────
+assert(
+  PromptManager.parse(
+    'portrait',
+    JSON.stringify({
+      summary: 's',
+      identityTags: ['a'],
+      interestTags: ['b'],
+      goalTags: ['c'],
+      learningStyle: 'hands-on',
+    }),
+  ).identityTags[0] === 'a',
+  'portrait 正例',
+);
+expectContractError('portrait', '{"summary":"s"}', 'portrait 缺标签数组被拒');
+
+// ── stage 8：recommendations ──────────────────────────────────────
+assert(
+  PromptManager.parse(
+    'recommendations',
+    JSON.stringify({
+      recommendations: [
+        {
+          title: 'T',
+          description: 'd',
+          reason: 'r',
+          matchTags: ['兴趣'],
+          suggestedMode: 'ENTRY',
+          keywords: ['k'],
+        },
+      ],
+    }),
+  ).recommendations[0].suggestedMode === 'ENTRY',
+  'recommendations 正例',
+);
+expectContractError(
+  'recommendations',
+  JSON.stringify({
+    recommendations: [
+      { title: 'T', description: 'd', reason: 'r', matchTags: [], suggestedMode: 'WAT', keywords: [] },
+    ],
+  }),
+  'recommendations suggestedMode 非枚举被拒',
+);
+expectContractError(
+  'recommendations',
+  JSON.stringify({
+    recommendations: Array.from({ length: 11 }, (_, i) => ({
+      title: `T${i}`,
+      description: 'd',
+      reason: 'r',
+      matchTags: [],
+      suggestedMode: 'ENTRY',
+      keywords: [],
+    })),
+  }),
+  'recommendations 超过 10 条被拒（与 MAX_RECOMMENDATIONS 对齐）',
+);
+
 // ── 格式段与 schema 同源：build 产出必须含 schema 里每个顶层字段名 ──
 const l3Prompt = PromptManager.build('l3-content', {
   l1Title: 'L1',

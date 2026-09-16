@@ -1,4 +1,5 @@
-import { PromptTemplate, extractJson } from '../prompt-engine';
+import * as z from 'zod';
+import { defineTemplate } from '../prompt-engine';
 
 export interface DiscoverNewInput {
   treeName: string;
@@ -8,25 +9,40 @@ export interface DiscoverNewInput {
   existingSuggestions?: string[];
 }
 
-export interface DiscoverNewSuggestion {
-  parentTitle?: string | null;
-  title: string;
-  description: string;
-  reason: string;
-}
-
-export interface DiscoverNewOutput {
-  suggestions: DiscoverNewSuggestion[];
-}
+export const discoverNewSchema = z.object({
+  suggestions: z
+    .array(
+      z.object({
+        parentTitle: z
+          .string()
+          .min(1)
+          .max(60)
+          .nullable()
+          .optional()
+          .meta({ description: '建议挂载的 L1 标题，必须与现有 L1 逐字一致；新增 L1 时为 null' }),
+        title: z.string().min(1).max(60).meta({ description: '主题名，5-15 字' }),
+        description: z.string().min(1).max(300).meta({ description: '一句话描述' }),
+        reason: z.string().min(1).max(300).meta({ description: '为什么值得补充' }),
+      }),
+    )
+    .max(10)
+    .meta({ description: '建议新增的节点列表；没有值得补充的可以是空数组' }),
+});
+export type DiscoverNewOutput = z.infer<typeof discoverNewSchema>;
 
 /**
  * Stage 4：新增分析
  * 审视技能树现有节点，结合技术趋势建议缺失的学习主题。
  */
-export const stage4DiscoverNew: PromptTemplate<DiscoverNewInput, DiscoverNewOutput> = {
-  version: 'v1',
-
-  build: (input) => {
+export const stage4DiscoverNew = defineTemplate<DiscoverNewInput, DiscoverNewOutput>({
+  version: '2.0.0',
+  stage: 'discover-new',
+  schema: discoverNewSchema,
+  invariants: (v) =>
+    v.suggestions.some((s) => typeof s.parentTitle === 'string' && s.parentTitle.trim().length === 0)
+      ? ['parentTitle 不能是空字符串：新增 L1 时请用 null，挂到现有 L1 时请逐字复制其标题']
+      : [],
+  body: (input) => {
     const nodeList = input.nodes
       .map((n) => {
         const levelName = n.level === 1 ? 'L1' : n.level === 2 ? 'L2' : 'L3';
@@ -51,17 +67,6 @@ ${input.existingSuggestions?.length ? `\n以下主题已经建议过但尚未处
 2. 每条建议包含：parentTitle（建议挂载的 L1 标题，必须与上方现有 L1 标题逐字一致；新增 L1 时为 null）、title（主题名，5-15 字）、description（一句话描述）、reason（为什么值得补充，结合趋势一句话说明）。
 3. 不要建议与现有节点重复或高度重叠的主题。
 4. 没有值得补充的也不要硬凑，可以返回空数组。
-5. 输出必须是合法 JSON，不要包含 Markdown 代码块外的任何内容。
-
-输出格式：
-{
-  "suggestions": [
-    { "parentTitle": "现有L1标题或null", "title": "...", "description": "...", "reason": "..." },
-    ...
-  ]
-}
 `;
   },
-
-  parse: (raw) => extractJson(raw) as DiscoverNewOutput,
-};
+});
