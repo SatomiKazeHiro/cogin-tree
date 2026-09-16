@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Param, Body, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { NodeLearningStatus } from '@skill/shared';
 import { NodeLearningRecordService } from './node-learning-record.service';
+import { UpdateNodeLearningStatusDto } from './dto/update-node-learning-status.dto';
 
 @Controller('skill-trees/:treeId')
 export class NodeLearningRecordController {
@@ -24,7 +24,7 @@ export class NodeLearningRecordController {
     @Request() req: { user: { userId: string } },
     @Param('treeId') treeId: string,
     @Param('nodeId') nodeId: string,
-    @Body() dto: { status: NodeLearningStatus },
+    @Body() dto: UpdateNodeLearningStatusDto,
   ) {
     return this.nodeLearningRecordService.updateStatus(
       req.user.userId,

@@ -12,6 +12,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LearningRecordService } from './learning-record.service';
 import { UpdateLearningRecordDto } from './dto/update-learning-record.dto';
+import { CreateLearningRecordDto } from './dto/create-learning-record.dto';
 
 @Controller('learning-records')
 export class LearningRecordController {
@@ -27,7 +28,7 @@ export class LearningRecordController {
   @Post()
   async create(
     @Request() req: { user: { userId: string } },
-    @Body() dto: { skillTreeId: string },
+    @Body() dto: CreateLearningRecordDto,
   ) {
     return this.learningRecordService.create(req.user.userId, dto.skillTreeId);
   }

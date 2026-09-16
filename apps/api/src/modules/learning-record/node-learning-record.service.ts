@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NodeLearningStatus } from '@skill/shared';
 import { NodeLearningRecord } from './entities/node-learning-record.entity';
+import { TreeAccessService } from '../tree-access/tree-access.service';
 
 @Injectable()
 export class NodeLearningRecordService {
   constructor(
     @InjectRepository(NodeLearningRecord)
     private recordRepo: Repository<NodeLearningRecord>,
+    private treeAccess: TreeAccessService,
   ) {}
 
   async findBySkillTree(userId: string, skillTreeId: string): Promise<NodeLearningRecord[]> {
@@ -32,6 +34,9 @@ export class NodeLearningRecordService {
     nodeId: string,
     status: NodeLearningStatus,
   ): Promise<NodeLearningRecord> {
+    // 私有技能树：归属校验放在 service 而非 controller，便于单测覆盖且与其余模块一致
+    await this.treeAccess.assertTreeOwner(skillTreeId, userId);
+
     let record = await this.recordRepo.findOne({
       where: { userId, skillTreeId, nodeId },
     });

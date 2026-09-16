@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RecommendationService } from './recommendation.service';
+import { FromRecommendationDto } from './dto/from-recommendation.dto';
 
 @Controller('recommendations')
 export class RecommendationController {
@@ -29,7 +30,7 @@ export class RecommendationController {
   @Post('from-recommendation')
   async createFromRecommendation(
     @Request() req: { user: { userId: string } },
-    @Body() dto: { recommendationId: string; type?: string; selectedPoints?: string[] },
+    @Body() dto: FromRecommendationDto,
   ) {
     return this.recommendationService.createSkillTreeFromRecommendation(
       req.user.userId,
