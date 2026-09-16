@@ -8,9 +8,9 @@ import {
   JoinColumn,
   OneToMany,
 } from 'typeorm';
-import { CodeExample } from '@skill/shared';
 import { TreeNode } from '../../skill-tree/entities/tree-node.entity';
 import { Exercise } from './exercise.entity';
+import { CodeExample } from './code-example.entity';
 
 @Entity('node_contents')
 export class NodeContent {
@@ -23,9 +23,6 @@ export class NodeContent {
   @Column({ name: 'core_text', type: 'text' })
   coreText: string;
 
-  @Column({ name: 'code_examples', type: 'json', nullable: true })
-  codeExamples?: CodeExample[];
-
   @Column({ default: 1 })
   version: number;
 
@@ -35,10 +32,13 @@ export class NodeContent {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @OneToOne(() => TreeNode, (node) => node.content)
+  @OneToOne(() => TreeNode, (node) => node.content, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'node_id' })
   node: TreeNode;
 
   @OneToMany(() => Exercise, (exercise) => exercise.content)
   exercises: Exercise[];
+
+  @OneToMany(() => CodeExample, (example) => example.content)
+  codeExamples: CodeExample[];
 }

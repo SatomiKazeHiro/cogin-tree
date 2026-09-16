@@ -7,6 +7,7 @@ import { SkillTree } from '../modules/skill-tree/entities/skill-tree.entity';
 import { TreeNode } from '../modules/skill-tree/entities/tree-node.entity';
 import { NodeContent } from '../modules/content/entities/node-content.entity';
 import { Exercise } from '../modules/content/entities/exercise.entity';
+import { CodeExample } from '../modules/content/entities/code-example.entity';
 import { LearningRecord } from '../modules/learning-record/entities/learning-record.entity';
 import { NodeLearningRecord } from '../modules/learning-record/entities/node-learning-record.entity';
 import { Recommendation } from '../modules/recommendation/entities/recommendation.entity';
@@ -31,6 +32,7 @@ export function databaseConfig(): TypeOrmModuleOptions {
       TreeNode,
       NodeContent,
       Exercise,
+      CodeExample,
       LearningRecord,
       NodeLearningRecord,
       Recommendation,

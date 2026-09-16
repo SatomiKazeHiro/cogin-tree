@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NodeContent } from './entities/node-content.entity';
 import { Exercise } from './entities/exercise.entity';
+import { CodeExample } from './entities/code-example.entity';
 import { TreeNode } from '../skill-tree/entities/tree-node.entity';
 import { SkillTree } from '../skill-tree/entities/skill-tree.entity';
 import { AiIntegrationService } from '../ai-integration/ai-integration.service';
@@ -14,6 +15,8 @@ export class ContentService {
     private contentRepo: Repository<NodeContent>,
     @InjectRepository(Exercise)
     private exerciseRepo: Repository<Exercise>,
+    @InjectRepository(CodeExample)
+    private codeExampleRepo: Repository<CodeExample>,
     @InjectRepository(TreeNode)
     private nodeRepo: Repository<TreeNode>,
     @InjectRepository(SkillTree)
@@ -24,7 +27,11 @@ export class ContentService {
   async getContentByNodeId(nodeId: string): Promise<NodeContent | null> {
     return this.contentRepo.findOne({
       where: { nodeId },
-      relations: ['exercises'],
+      relations: ['exercises', 'codeExamples'],
+      order: {
+        exercises: { sortOrder: 'ASC' },
+        codeExamples: { sortOrder: 'ASC' },
+      },
     });
   }
 
@@ -57,12 +64,24 @@ export class ContentService {
       const content = this.contentRepo.create({
         nodeId,
         coreText: result.coreText,
-        codeExamples: result.codeExamples || [],
         version: 1,
       });
       const saved = await this.contentRepo.save(content);
 
-      const exercises = result.exercises.map((ex, index) =>
+      const codeExamples = (result.codeExamples || []).map((item, index) =>
+        this.codeExampleRepo.create({
+          nodeContentId: saved.id,
+          title: item.title,
+          language: item.language,
+          code: item.code,
+          sortOrder: index,
+        }),
+      );
+      if (codeExamples.length > 0) {
+        await this.codeExampleRepo.save(codeExamples);
+      }
+
+      const exercises = (result.exercises || []).map((ex, index) =>
         this.exerciseRepo.create({
           nodeContentId: saved.id,
           question: ex.question,
@@ -72,7 +91,9 @@ export class ContentService {
           sortOrder: index,
         }),
       );
-      await this.exerciseRepo.save(exercises);
+      if (exercises.length > 0) {
+        await this.exerciseRepo.save(exercises);
+      }
 
       return this.getContentByNodeId(nodeId) as Promise<NodeContent>;
     } catch (err) {
