@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiIntegrationModule } from '../ai-integration/ai-integration.module';
+import { TreeAccessModule } from '../tree-access/tree-access.module';
 import { SkillTree } from './entities/skill-tree.entity';
 import { TreeNode } from './entities/tree-node.entity';
 import { LearningRecord } from '../learning-record/entities/learning-record.entity';
@@ -11,6 +12,7 @@ import { SkillTreeController } from './skill-tree.controller';
   imports: [
     TypeOrmModule.forFeature([SkillTree, TreeNode, LearningRecord]),
     AiIntegrationModule,
+    TreeAccessModule,
   ],
   providers: [SkillTreeService],
   controllers: [SkillTreeController],

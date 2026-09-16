@@ -21,6 +21,7 @@ import { SuggestedChange } from './entities/suggested-change.entity';
 import { TreeNode } from '../skill-tree/entities/tree-node.entity';
 import { SkillTreeService } from '../skill-tree/skill-tree.service';
 import { AiIntegrationService } from '../ai-integration/ai-integration.service';
+import { TreeAccessService } from '../tree-access/tree-access.service';
 
 interface NodeListItem {
   level: number;
@@ -49,24 +50,26 @@ export class AnalysisService {
     private nodeRepo: Repository<TreeNode>,
     private skillTreeService: SkillTreeService,
     private aiService: AiIntegrationService,
+    private treeAccess: TreeAccessService,
   ) {}
 
   /** 对整棵树执行「新增发现 + 过期检查」分析，返回本次产生的建议 */
-  async analyze(treeId: string): Promise<SuggestedChange[]> {
+  async analyze(treeId: string, userId: string): Promise<SuggestedChange[]> {
+    // 归属校验由 SkillTreeService.findById 内的 assertTreeOwner 完成
     const existing = this.analyzing.get(treeId);
     if (existing) {
       return existing;
     }
 
-    const promise = this.runAnalysis(treeId).finally(() => {
+    const promise = this.runAnalysis(treeId, userId).finally(() => {
       this.analyzing.delete(treeId);
     });
     this.analyzing.set(treeId, promise);
     return promise;
   }
 
-  private async runAnalysis(treeId: string): Promise<SuggestedChange[]> {
-    const tree = await this.skillTreeService.findById(treeId);
+  private async runAnalysis(treeId: string, userId: string): Promise<SuggestedChange[]> {
+    const tree = await this.skillTreeService.findById(treeId, userId);
     const nodes = tree.nodes || [];
 
     const l1ById = new Map(
@@ -85,7 +88,7 @@ export class AnalysisService {
     const input = { treeName: tree.name, treeType: tree.type, nodes: nodeList };
 
     // 去重：把尚未处理的建议标题喂给 AI，避免重复建议
-    const pending = await this.findPendingSuggestions(treeId);
+    const pending = await this.loadPendingSuggestions(treeId);
     const pendingAddTitles = pending
       .filter((s) => s.action === SuggestionAction.ADD)
       .map((s) => s.title);
@@ -204,8 +207,8 @@ export class AnalysisService {
     return ExpireLevel.I;
   }
 
-  /** 某棵树所有待处理建议 */
-  async findPendingSuggestions(treeId: string): Promise<SuggestedChange[]> {
+  /** 内部加载待处理建议（不做归属校验，供已校验过的调用方复用） */
+  private async loadPendingSuggestions(treeId: string): Promise<SuggestedChange[]> {
     return this.suggestionRepo.find({
       where: { status: SuggestionStatus.PENDING, job: { treeId } },
       relations: ['job'],
@@ -213,8 +216,14 @@ export class AnalysisService {
     });
   }
 
+  /** 某棵树所有待处理建议 */
+  async findPendingSuggestions(treeId: string, userId: string): Promise<SuggestedChange[]> {
+    await this.treeAccess.assertTreeOwner(treeId, userId);
+    return this.loadPendingSuggestions(treeId);
+  }
+
   /** 采纳建议：ADD 创建节点，EXPIRE 标记节点过期 */
-  async applySuggestion(id: string): Promise<SuggestedChange> {
+  async applySuggestion(id: string, userId: string): Promise<SuggestedChange> {
     const suggestion = await this.suggestionRepo.findOne({
       where: { id },
       relations: ['job'],
@@ -222,6 +231,8 @@ export class AnalysisService {
     if (!suggestion) {
       throw new NotFoundException('建议不存在');
     }
+    // 归属校验先于状态检查：越权访问不应泄露「该建议是否已处理」
+    await this.treeAccess.assertTreeOwner(suggestion.job.treeId, userId);
     if (suggestion.status !== SuggestionStatus.PENDING) {
       throw new BadRequestException('该建议已处理');
     }
@@ -293,11 +304,16 @@ export class AnalysisService {
   }
 
   /** 忽略建议 */
-  async ignoreSuggestion(id: string): Promise<SuggestedChange> {
-    const suggestion = await this.suggestionRepo.findOne({ where: { id } });
+  async ignoreSuggestion(id: string, userId: string): Promise<SuggestedChange> {
+    const suggestion = await this.suggestionRepo.findOne({
+      where: { id },
+      relations: ['job'],
+    });
     if (!suggestion) {
       throw new NotFoundException('建议不存在');
     }
+    // 归属校验先于状态检查（同 applySuggestion）
+    await this.treeAccess.assertTreeOwner(suggestion.job.treeId, userId);
     if (suggestion.status !== SuggestionStatus.PENDING) {
       throw new BadRequestException('该建议已处理');
     }

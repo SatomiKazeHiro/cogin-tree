@@ -5,8 +5,8 @@ import { TreeType, NodeLevel, LearningStatus } from '@skill/shared';
 import { SkillTree } from './entities/skill-tree.entity';
 import { TreeNode } from './entities/tree-node.entity';
 import { LearningRecord } from '../learning-record/entities/learning-record.entity';
-import { Recommendation } from '../recommendation/entities/recommendation.entity';
 import { AiIntegrationService } from '../ai-integration/ai-integration.service';
+import { TreeAccessService } from '../tree-access/tree-access.service';
 
 @Injectable()
 export class SkillTreeService {
@@ -18,6 +18,7 @@ export class SkillTreeService {
     @InjectRepository(LearningRecord)
     private recordRepo: Repository<LearningRecord>,
     private aiService: AiIntegrationService,
+    private treeAccess: TreeAccessService,
   ) {}
 
   async create(
@@ -44,7 +45,7 @@ export class SkillTreeService {
         )
       : await this.aiService.generateL1(saved.name, saved.description, saved.type);
 
-    const nodes = l1Result.nodes.map((node, index) =>
+    const nodes = (l1Result.nodes || []).map((node, index) =>
       this.nodeRepo.create({
         treeId: saved.id,
         level: NodeLevel.L1,
@@ -53,7 +54,9 @@ export class SkillTreeService {
         sortOrder: index,
       }),
     );
-    await this.nodeRepo.save(nodes);
+    if (nodes.length > 0) {
+      await this.nodeRepo.save(nodes);
+    }
 
     // Link tree to the creator via a learning record
     const record = this.recordRepo.create({
@@ -63,7 +66,7 @@ export class SkillTreeService {
     });
     await this.recordRepo.save(record);
 
-    return this.findById(saved.id);
+    return this.findById(saved.id, userId);
   }
 
   async generateKnowledgePoints(data: {
@@ -80,7 +83,13 @@ export class SkillTreeService {
     });
   }
 
-  async findById(id: string): Promise<SkillTree> {
+  async findById(id: string, userId: string): Promise<SkillTree> {
+    await this.treeAccess.assertTreeOwner(id, userId);
+    return this.loadTree(id);
+  }
+
+  /** 内部加载（不做归属校验，供已校验过的调用方使用） */
+  private async loadTree(id: string): Promise<SkillTree> {
     const tree = await this.treeRepo.findOne({
       where: { id },
       relations: ['nodes'],
@@ -94,32 +103,18 @@ export class SkillTreeService {
   async update(
     id: string,
     data: Partial<Pick<SkillTree, 'name' | 'description' | 'type' | 'keywords'>>,
+    userId: string,
   ): Promise<SkillTree> {
+    await this.treeAccess.assertTreeOwner(id, userId);
     await this.treeRepo.update(id, data);
-    return this.findById(id);
+    return this.loadTree(id);
   }
 
-  async remove(id: string): Promise<void> {
-    // Detach recommendations before deleting the tree to avoid FK violation.
-    await this.treeRepo.manager
-      .getRepository(Recommendation)
-      .update({ skillTreeId: id }, { skillTreeId: null });
-
-    const nodes = await this.nodeRepo.find({ where: { treeId: id } });
-    const nodeIds = nodes.map((n) => n.id);
-
-    if (nodeIds.length > 0) {
-      // Exercises cascade from node_contents; delete contents first.
-      await this.nodeRepo.manager
-        .createQueryBuilder()
-        .delete()
-        .from('node_contents')
-        .where('node_id IN (:...nodeIds)', { nodeIds })
-        .execute();
-    }
-
-    await this.nodeRepo.delete({ treeId: id });
-    await this.recordRepo.delete({ skillTreeId: id });
+  async remove(id: string, userId: string): Promise<void> {
+    await this.treeAccess.assertTreeOwner(id, userId);
+    // 节点、内容、代码示例、练习、学习记录、面试题、分析任务与产物任务
+    // 均由外键 ON DELETE CASCADE 清理；推荐指向本树的 skill_tree_id 由 ON DELETE SET NULL 置空
+    // （见设计文档 5.2，故此处不再手工删子行）
     await this.treeRepo.delete(id);
   }
 }

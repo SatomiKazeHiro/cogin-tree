@@ -38,20 +38,30 @@ export class SkillTreeController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.skillTreeService.findById(id);
+  async findOne(
+    @Request() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
+    return this.skillTreeService.findById(id, req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: Partial<CreateSkillTreeDto>) {
-    return this.skillTreeService.update(id, dto);
+  async update(
+    @Request() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateSkillTreeDto>,
+  ) {
+    return this.skillTreeService.update(id, dto, req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    await this.skillTreeService.remove(id);
+  async remove(
+    @Request() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
+    await this.skillTreeService.remove(id, req.user.userId);
     return { id };
   }
 }

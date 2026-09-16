@@ -22,10 +22,11 @@ export class DashboardService {
     const completedCounts = await this.nodeLearningRecordService.getProgressByUser(userId);
 
     // Cache tree lookups to avoid duplicate DB queries between records and recent nodes.
+    // 树为私有资源：传入 userId 使归属校验生效（他人的树会抛 Forbidden 并被 catch 成 null）
     const treeCache = new Map<string, Awaited<ReturnType<typeof this.skillTreeService.findById>> | null>();
     const getTree = async (skillTreeId: string) => {
       if (treeCache.has(skillTreeId)) return treeCache.get(skillTreeId);
-      const tree = await this.skillTreeService.findById(skillTreeId).catch(() => null);
+      const tree = await this.skillTreeService.findById(skillTreeId, userId).catch(() => null);
       treeCache.set(skillTreeId, tree);
       return tree;
     };

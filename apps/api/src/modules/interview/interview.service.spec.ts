@@ -53,6 +53,14 @@ describe('InterviewService.findForTree（聚合 + 懒生成）', () => {
     );
   });
 
+  it('读取前先校验树归属（经 SkillTreeService.findById 携带 userId）', async () => {
+    questionRepo.find.mockResolvedValue([]);
+
+    await service.findForTree('t-1', 'u1');
+
+    expect(skillTreeService.findById).toHaveBeenCalledWith('t-1', 'u1');
+  });
+
   it('有题节点返回题目并分组；无题节点触发后台生成但不阻塞响应', async () => {
     questionRepo.find.mockResolvedValue([
       { id: 'q-1', l2NodeId: 'n-a', question: 'Q1', sortOrder: 0 },
@@ -61,7 +69,7 @@ describe('InterviewService.findForTree（聚合 + 懒生成）', () => {
       questions: [{ question: 'Q', answer: 'A', difficulty: 'EASY' }],
     });
 
-    const groups = await service.findForTree('t-1');
+    const groups = await service.findForTree('t-1', 'u1');
 
     expect(groups).toHaveLength(2);
     expect(groups[0]).toMatchObject({
@@ -96,8 +104,8 @@ describe('InterviewService.findForTree（聚合 + 懒生成）', () => {
       }),
     );
 
-    await service.findForTree('t-1');
-    await service.findForTree('t-1');
+    await service.findForTree('t-1', 'u1');
+    await service.findForTree('t-1', 'u1');
 
     // 两个无题节点各一次，共 2 次；第二次请求未重复触发
     expect(aiService.generateInterviewQA).toHaveBeenCalledTimes(2);
@@ -110,7 +118,7 @@ describe('InterviewService.findForTree（聚合 + 懒生成）', () => {
     questionRepo.find.mockResolvedValue([]);
     aiService.generateInterviewQA.mockRejectedValue(new Error('AI 失败'));
 
-    const groups = await service.findForTree('t-1');
+    const groups = await service.findForTree('t-1', 'u1');
 
     expect(groups).toHaveLength(2);
     // 等待后台 catch 执行完，确认无未处理异常
@@ -118,7 +126,7 @@ describe('InterviewService.findForTree（聚合 + 懒生成）', () => {
     await new Promise((r) => setImmediate(r));
 
     // 失败后 generating 已清理，再次请求会重新触发
-    await service.findForTree('t-1');
+    await service.findForTree('t-1', 'u1');
     expect(aiService.generateInterviewQA).toHaveBeenCalledTimes(4);
   });
 });

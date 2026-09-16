@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InterviewService } from './interview.service';
 
@@ -8,7 +8,10 @@ export class InterviewController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id/interview')
-  async getInterviewQA(@Param('id') id: string) {
-    return this.interviewService.findForTree(id);
+  async getInterviewQA(
+    @Request() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
+    return this.interviewService.findForTree(id, req.user.userId);
   }
 }

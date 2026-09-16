@@ -24,9 +24,10 @@ export class InterviewService {
   /**
    * 面试视图：按 L2 节点聚合已有题目；
    * 没有题的 L2 节点触发后台懒生成（不阻塞响应），下次访问时题目自然出现。
+   * 归属校验由 SkillTreeService.findById 内的 assertTreeOwner 完成（一次查询同时拿到 nodes）。
    */
-  async findForTree(treeId: string): Promise<InterviewNodeGroup[]> {
-    const tree = await this.skillTreeService.findById(treeId);
+  async findForTree(treeId: string, userId: string): Promise<InterviewNodeGroup[]> {
+    const tree = await this.skillTreeService.findById(treeId, userId);
     const nodes = tree.nodes || [];
 
     const l1ById = new Map(

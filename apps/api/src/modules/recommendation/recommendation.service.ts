@@ -83,7 +83,8 @@ export class RecommendationService {
       records
         .filter((r) => r.status !== LearningStatus.ABANDONED)
         .map(async (r) => {
-          const tree = await this.skillTreeService.findById(r.skillTreeId).catch(() => null);
+          // 树为私有资源：传入 userId 触发归属校验（非本人的树会抛 Forbidden 并被 catch 忽略）
+          const tree = await this.skillTreeService.findById(r.skillTreeId, userId).catch(() => null);
           return {
             name: tree?.name || '',
             type: tree?.type || '',
