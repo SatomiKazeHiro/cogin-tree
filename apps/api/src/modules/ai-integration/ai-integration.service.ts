@@ -27,7 +27,10 @@ export class AiIntegrationService {
     const prompt = PromptManager.build('portrait', context);
     const provider = await this.getProvider();
     const raw = await provider.chat(prompt);
-    return PromptManager.parse('portrait', raw) as Record<string, unknown>;
+    const parsed = PromptManager.parse('portrait', raw);
+    // user_profiles.computed_portrait 目前是 jsonb + Record<string, unknown>；
+    // 契约层已保证形状，这里用展开生成新对象完成类型桥接（T6/T7 会把该字段收紧并去掉桥接）
+    return { ...parsed };
   }
 
   async generateL1(title: string, description: string | undefined, type: TreeType): Promise<{ nodes: { title: string; description: string }[] }> {

@@ -1,13 +1,13 @@
 import { PromptTemplate, extractJson } from '../prompt-engine';
 
-interface KnowledgePointsInput {
+export interface KnowledgePointsInput {
   title: string;
   description?: string;
   type: string;
   keywords?: string;
 }
 
-interface KnowledgePointsOutput {
+export interface KnowledgePointsOutput {
   points: string[];
 }
 

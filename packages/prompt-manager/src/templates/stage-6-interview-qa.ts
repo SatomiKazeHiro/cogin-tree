@@ -1,19 +1,19 @@
 import { PromptTemplate, extractJson } from '../prompt-engine';
 
-interface InterviewQAInput {
+export interface InterviewQAInput {
   treeName: string;
   l1Title: string;
   l2Title: string;
   l2Description?: string;
 }
 
-interface InterviewQuestionItem {
+export interface InterviewQuestionItem {
   question: string;
   answer: string;
   difficulty: string;
 }
 
-interface InterviewQAOutput {
+export interface InterviewQAOutput {
   questions: InterviewQuestionItem[];
 }
 

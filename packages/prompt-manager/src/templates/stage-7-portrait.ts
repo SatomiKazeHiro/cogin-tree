@@ -1,13 +1,13 @@
 import { PromptTemplate, extractJson } from '../prompt-engine';
 
-interface PortraitInput {
+export interface PortraitInput {
   identityAnswers: string[];
   interestAnswers: string[];
   goalAnswers: string[];
   backgroundAnswers: string[];
 }
 
-interface PortraitOutput {
+export interface PortraitOutput {
   summary: string;
   identityTags: string[];
   interestTags: string[];

@@ -1,13 +1,13 @@
 import { PromptTemplate, extractJson } from '../prompt-engine';
 
-interface L1OutlineInput {
+export interface L1OutlineInput {
   title: string;
   description?: string;
   type: string;
   selectedPoints?: string[];
 }
 
-interface L1OutlineOutput {
+export interface L1OutlineOutput {
   nodes: { title: string; description: string }[];
 }
 

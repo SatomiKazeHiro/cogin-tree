@@ -1,12 +1,12 @@
 import { PromptTemplate, extractJson } from '../prompt-engine';
 
-interface L2NodesInput {
+export interface L2NodesInput {
   l1Title: string;
   l1Description: string;
   skillTreeName: string;
 }
 
-interface L2NodesOutput {
+export interface L2NodesOutput {
   nodes: { title: string; description: string }[];
 }
 

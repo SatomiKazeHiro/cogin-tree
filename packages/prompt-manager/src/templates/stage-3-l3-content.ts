@@ -1,12 +1,12 @@
 import { PromptTemplate, extractJson } from '../prompt-engine';
 
-interface L3ContentInput {
+export interface L3ContentInput {
   l1Title: string;
   l2Title: string;
   skillTreeName: string;
 }
 
-interface L3ContentOutput {
+export interface L3ContentOutput {
   coreText: string;
   codeExamples: { title: string; language: string; code: string }[];
   exercises: {

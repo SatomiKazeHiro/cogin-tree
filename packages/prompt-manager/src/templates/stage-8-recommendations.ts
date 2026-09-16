@@ -1,6 +1,6 @@
 import { PromptTemplate, extractJson } from '../prompt-engine';
 
-interface RecommendationInput {
+export interface RecommendationInput {
   portrait: {
     summary?: string;
     identityTags?: string[];
@@ -12,7 +12,7 @@ interface RecommendationInput {
   oldRecommendations: { title: string; reason: string }[];
 }
 
-interface RecommendationItem {
+export interface RecommendationItem {
   title: string;
   description: string;
   reason: string;
@@ -21,7 +21,7 @@ interface RecommendationItem {
   keywords: string[];
 }
 
-interface RecommendationsOutput {
+export interface RecommendationsOutput {
   recommendations: RecommendationItem[];
 }
 
