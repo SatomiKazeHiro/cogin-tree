@@ -2,6 +2,17 @@
 
 一个基于 AI 的个性化技能树学习平台。用户通过肖像问卷描述自己的身份、兴趣与目标，系统据此生成学习方向推荐；用户可以创建技能树，AI 会自动梳理 L1/L2 知识点并生成 L3 学习内容（概念、代码演示、练习题），同时支持标记每个节点的学习状态。
 
+<table>
+  <tr>
+    <td align="center"><b>首页</b></td>
+    <td align="center"><b>技能树</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/首页.png" alt="首页" /></td>
+    <td><img src="docs/screenshots/技能树.png" alt="技能树" /></td>
+  </tr>
+</table>
+
 ---
 
 ## 功能特性
