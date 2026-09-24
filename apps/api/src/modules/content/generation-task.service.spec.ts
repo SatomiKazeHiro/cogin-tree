@@ -69,4 +69,34 @@ describe('GenerationTaskService', () => {
     await expect(service.findForNode('n1')).resolves.toHaveLength(1);
     expect(taskRepo.find).toHaveBeenCalledWith({ where: { nodeId: 'n1' } });
   });
+
+  // ── 阶段 5：force 认领（重新生成的地基） ──────────────────────────
+
+  it('force=true 时允许从 READY 重新认领', async () => {
+    dataSource.query.mockResolvedValue([{ id: 'task-1' }]);
+
+    await expect(service.claim('n1', ArtifactKind.L3_CORE_TEXT, true)).resolves.toBe(true);
+
+    const sql = dataSource.query.mock.calls[0][0] as string;
+    const params = dataSource.query.mock.calls[0][1] as unknown[];
+    // READY 分支由 $4 开关控制：默认关闭，force 时打开
+    expect(sql).toContain("and generation_tasks.status = 'READY'");
+    expect(params).toContain(true);
+  });
+
+  it('force 缺省时参数为 false（行为与阶段 4 一致）', async () => {
+    dataSource.query.mockResolvedValue([]);
+
+    await service.claim('n1', ArtifactKind.L3_CORE_TEXT);
+
+    const params = dataSource.query.mock.calls[0][1] as unknown[];
+    expect(params).toContain(false);
+    expect(params).toContain(STALE_GENERATING_MS);
+  });
+
+  it('他人正在生成（新鲜 GENERATING）时 force 也抢不到——保持单写者', async () => {
+    dataSource.query.mockResolvedValue([]);
+
+    await expect(service.claim('n1', ArtifactKind.L3_EXERCISES, true)).resolves.toBe(false);
+  });
 });

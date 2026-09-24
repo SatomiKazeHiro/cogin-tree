@@ -25,9 +25,13 @@ export class GenerationTaskService {
 
   /**
    * 尝试认领 (nodeId, kind) 的生成权。
-   * 返回 true 表示本次由调用方生成；false 表示已 READY，或他人正在生成且未超时。
+   *
+   * - `force=false`（默认）：已 READY 直接返回 false（幂等，绝不重复调 AI）
+   * - `force=true`：允许从 READY 重新认领（「重新生成」的地基）
+   *
+   * 两种情况都**不允许抢占新鲜的 GENERATING** —— 否则并发重新生成会变成多写者。
    */
-  async claim(nodeId: string, kind: ArtifactKind): Promise<boolean> {
+  async claim(nodeId: string, kind: ArtifactKind, force = false): Promise<boolean> {
     const rows: unknown[] = await this.dataSource.query(
       `insert into generation_tasks (node_id, artifact_kind, status, attempts, started_at)
        values ($1, $2, 'GENERATING', 1, now())
@@ -39,8 +43,9 @@ export class GenerationTaskService {
          where generation_tasks.status in ('PENDING', 'FAILED')
             or (generation_tasks.status = 'GENERATING'
                 and generation_tasks.started_at < now() - ($3::int * interval '1 millisecond'))
+            or ($4::boolean and generation_tasks.status = 'READY')
        returning id`,
-      [nodeId, kind, STALE_GENERATING_MS],
+      [nodeId, kind, STALE_GENERATING_MS, force],
     );
     return rows.length > 0;
   }
