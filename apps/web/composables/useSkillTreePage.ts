@@ -248,6 +248,8 @@ export function useSkillTreePage(treeId: string) {
         return;
       }
     }
+    // 轮询用尽（对方可能已僵死，服务端 120s 后才会回收陈旧认领）——明确告诉用户怎么办
+    toast.error('核心内容生成超时，请刷新页面或稍后重试');
   }
 
   /**
