@@ -227,6 +227,30 @@ export function useSkillTreePage(treeId: string) {
   }
 
   /**
+   * coreText 正由**他人**生成时的轮询等待（两个标签页同开、或刷新时上一次请求仍在飞行）。
+   * 不等待的话抽屉会永远停在「正在生成核心内容…」，只能靠用户自己刷新。
+   * 只读状态，不发新请求、不消耗 token。
+   */
+  const CORE_TEXT_POLL_INTERVAL_MS = 2_500;
+  const CORE_TEXT_POLL_MAX = 24; // ≈60s，与后端 ensureCoreText 的等待预算对齐
+
+  async function waitForCoreText(nodeId: string) {
+    for (let i = 0; i < CORE_TEXT_POLL_MAX; i++) {
+      await new Promise((resolve) => setTimeout(resolve, CORE_TEXT_POLL_INTERVAL_MS));
+      const view = await loadArtifacts(nodeId);
+      if (!view) return;
+      if (view.coreText.status === GenerationTaskStatus.FAILED) {
+        return; // 交给 UI 显示「失败 + 重试」
+      }
+      if (view.coreText.status === GenerationTaskStatus.READY && view.coreText.text) {
+        rebuildGraph();
+        prefetchCodeExamples(nodeId);
+        return;
+      }
+    }
+  }
+
+  /**
    * 打开 L2 抽屉：拉状态 → 未就绪则生成 coreText（阻塞）→ ready 后后台预取代码示例。
    * 练习题不预取，等用户切到该 tab 时再按需生成（见 generateExercises）。
    */
@@ -242,6 +266,12 @@ export function useSkillTreePage(treeId: string) {
       return;
     }
 
+    // 已有请求在生成（本次认领必定失败）→ 等它落库即可，不必再发一次
+    if (view.coreText.status === GenerationTaskStatus.GENERATING) {
+      await waitForCoreText(nodeId);
+      return;
+    }
+
     setNodeLoading(nodeId, true);
     try {
       const next = await api<NodeArtifactsResponse>(
@@ -250,8 +280,14 @@ export function useSkillTreePage(treeId: string) {
       );
       storeArtifacts(nodeId, next);
       rebuildGraph();
-      toast.success('学习内容已生成');
-      prefetchCodeExamples(nodeId);
+
+      if (next.coreText.status === GenerationTaskStatus.READY && next.coreText.text) {
+        toast.success('学习内容已生成');
+        prefetchCodeExamples(nodeId);
+      } else {
+        // 认领失败（他人抢先）→ 等对方落库，而不是假装成功
+        await waitForCoreText(nodeId);
+      }
     } catch (err) {
       console.error('[useSkillTreePage] ensureCoreText failed', err);
       toast.error(err instanceof Error ? err.message : '核心内容生成失败');

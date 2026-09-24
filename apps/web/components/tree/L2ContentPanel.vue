@@ -88,7 +88,6 @@ import { learningStatusMeta } from '../../utils/learning-status';
 const props = defineProps<{
   title: string;
   artifacts: NodeArtifactsResponse | null;
-  loading?: boolean;
   nodeId?: string | null;
   learningStatus?: NodeLearningStatus;
 }>();

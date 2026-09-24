@@ -68,7 +68,6 @@
           <TreeL2ContentPanel
             :title="selectedL2Title"
             :artifacts="selectedArtifacts"
-            :loading="loadingNodeId === selectedL2Id"
             :node-id="selectedL2Id"
             :learning-status="selectedL2Id ? learningStatusByNodeId[selectedL2Id] : undefined"
             @close="selectedL2Id = null"
