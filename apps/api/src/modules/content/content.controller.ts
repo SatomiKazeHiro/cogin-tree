@@ -74,6 +74,32 @@ export class ContentController {
     return this.artifactService.generateArtifact(nodeId, req.user.userId, kind);
   }
 
+  // ── 重新生成：已就绪的产物也允许换新（过期节点的修复入口） ────────
+
+  /**
+   * 节点级「重新生成」：重生成正文并作废下游产物（示例 / 练习题按消费时机重新生成）。
+   * 节点状态为 `OUTDATED_I` / `OUTDATED_II` 时，成功后清回 `ACTIVE`。
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('regenerate')
+  async regenerateNode(
+    @Request() req: { user: { userId: string } },
+    @Param('id') nodeId: string,
+  ) {
+    return this.artifactService.regenerateNode(nodeId, req.user.userId);
+  }
+
+  /** 单产物「重新生成」（只换这一类，不影响其他区块） */
+  @UseGuards(JwtAuthGuard)
+  @Post('artifacts/:kind/regenerate')
+  async regenerateArtifact(
+    @Request() req: { user: { userId: string } },
+    @Param('id') nodeId: string,
+    @Param('kind', new ParseEnumPipe(ArtifactKind)) kind: ArtifactKind,
+  ) {
+    return this.artifactService.regenerateArtifact(nodeId, req.user.userId, kind);
+  }
+
   // ── legacy 接口：语义收窄为 coreText，路径与响应形状保持向后兼容 ──
 
   /** 确保 coreText（等同 POST /artifacts/L3_CORE_TEXT/generate，但已有内容时直接返回） */
