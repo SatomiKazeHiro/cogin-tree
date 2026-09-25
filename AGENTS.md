@@ -239,6 +239,7 @@ pnpm dev
 | GET / PATCH / DELETE | `/skill-trees/:id` |
 | GET | `/nodes/:id/children`、`/nodes/:id`、`/nodes/:id/artifacts` |
 | POST | `/nodes/:id/expand`、`/nodes/:id/content`（legacy，语义=确保 coreText）、`/nodes/:id/artifacts/:kind/generate`（`kind` ∈ `L3_CORE_TEXT`/`L3_CODE_EXAMPLES`/`L3_EXERCISES`，非法值 400） |
+| POST | `/nodes/:id/regenerate`（节点级：重生成正文 + 作废下游产物）、`/nodes/:id/artifacts/:kind/regenerate`（单产物：已就绪的也允许换新） |
 | GET / PATCH | `/nodes/:id/content`（legacy；GET 附 `artifacts` 状态字段） |
 | PATCH / DELETE | `/nodes/:id` |
 | GET / POST | `/learning-records` |
@@ -370,8 +371,8 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
   - `modules/auth/auth.service.spec.ts`：注册/登录（含密码哈希校验与异常分支）；
   - `modules/analysis/analysis.service.spec.ts`：建议采纳（创建节点/标记过期）、状态约束、标题匹配与 AI 失败降级；
   - `modules/interview/interview.service.spec.ts`：按节点聚合分组、懒生成触发与并发去重、生成失败降级；
-  - `modules/content/generation-task.service.spec.ts`：产物状态机的原子认领 SQL（含 `on conflict` 条件与 120s 陈旧阈值）、`markReady`/`markFailed` 语义；
-  - `modules/content/artifact.service.spec.ts`：产物编排（幂等认领、coreText 前置依赖、失败标记并抛出、无 task 行时按内容兜底派生状态）。
+  - `modules/content/generation-task.service.spec.ts`：产物状态机的原子认领 SQL（含 `on conflict` 条件、120s 陈旧阈值、**force 重新认领**）、`markReady`/`markFailed` 语义；
+  - `modules/content/artifact.service.spec.ts`：产物编排（幂等认领、coreText 前置依赖、失败标记并抛出、无 task 行时按内容兜底派生状态、**重新生成：version 递增 / 依赖产物作废 / 过期标记清回 ACTIVE**）。
 - 测试方式：直接 `new Service(...)` 传入 mock 依赖，不依赖 Nest 测试模块与真实数据库。
 - 前端与 packages 下各包仍无测试；新增功能时应优先为纯逻辑、可确定的代码补测试（AI 生成内容本身不可测）。
 - 日常验证仍以 `pnpm typecheck` 与手动运行 `pnpm dev` 为辅。
@@ -417,8 +418,9 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 3. **ANTHROPIC Provider 未接入**：`AIProviderType.ANTHROPIC` 在工厂中未实现真实调用。
 4. **生产部署配置缺失**：没有 Dockerfile、docker-compose、CI/CD workflow 或部署脚本。
 5. **analysis 按树分析（偏离设计文档）**：文档设计为按节点分析（POST /nodes/:id/analyze），实际实现为按树一键分析（POST /skill-trees/:id/analysis）；`TreeNode.keyPoints` 字段未回填；建议无「重新生成」入口。
-6. **过期 → 重新生成缺失**：节点被标记 `OUTDATED_*` 后没有「重新生成 coreText」的入口（`NodeContent.version` 目前只在 coreText 重新生成时 +1；代码示例/练习题是「先删后插」，无版本概念）。计划中的阶段 5 处理。
-7. **interview 仍用内存 Map 去重**：产物生成已改为 `generation_tasks` 的库级原子认领（跨进程/重启安全），`interview.service.ts` 的并发去重仍是内存 `Map`，尚未迁移。
+6. **`OUTDATED_III` 仍无「删除节点」引导按钮**：过期节点已可通过「重新生成」修复（`OUTDATED_I`/`OUTDATED_II` 在重新生成成功后自动清回 `ACTIVE`），但 III 表示主题本身已淘汰，目前只在节点徽标与抽屉里文案提示「建议删除」，删除仍需走节点菜单。节点状态也**无法手动**改回（`UpdateNodeDto` 只允许 title/description）。
+7. **审计无法显式区分「同一节点的第几版正文」**：`l3-core-text` 的输入不含旧正文，因此两版正文的首次尝试 `request_hash` 相同；要按版本追溯需给 `ai_generations` 加列（如 `node_content_version`）。代码示例/练习题同样没有版本号（`attempts` 只记认领次数）。
+8. **interview 仍用内存 Map 去重**：产物生成已改为 `generation_tasks` 的库级原子认领（跨进程/重启安全），`interview.service.ts` 的并发去重仍是内存 `Map`，尚未迁移。
 
 ---
 
