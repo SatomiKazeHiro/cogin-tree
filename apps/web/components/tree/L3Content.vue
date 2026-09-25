@@ -18,6 +18,18 @@
 
     <!-- Code examples -->
     <section v-if="(activeTab === 'code' || !activeTab)">
+      <!-- 单产物重新生成：仅就绪时提供（未就绪已有各自的提示与「重试」） -->
+      <div v-if="canRegenerate(artifacts.codeExamples.status)" class="mb-3 flex justify-end">
+        <button
+          type="button"
+          class="flex items-center gap-1.5 text-[12px] text-muted transition-colors hover:text-ink"
+          @click="emit('regenerate', ArtifactKind.L3_CODE_EXAMPLES)"
+        >
+          <RefreshCw class="h-3.5 w-3.5" />
+          重新生成示例
+        </button>
+      </div>
+
       <div v-if="artifacts.codeExamples.items.length" class="space-y-6">
         <article
           v-for="(example, index) in artifacts.codeExamples.items"
@@ -60,6 +72,17 @@
 
     <!-- Exercises -->
     <section v-if="(activeTab === 'exercise' || !activeTab)">
+      <div v-if="canRegenerate(artifacts.exercises.status)" class="mb-3 flex justify-end">
+        <button
+          type="button"
+          class="flex items-center gap-1.5 text-[12px] text-muted transition-colors hover:text-ink"
+          @click="emit('regenerate', ArtifactKind.L3_EXERCISES)"
+        >
+          <RefreshCw class="h-3.5 w-3.5" />
+          重新生成练习
+        </button>
+      </div>
+
       <div v-if="artifacts.exercises.items.length" class="space-y-5">
         <TreeExerciseCard
           v-for="(exercise, index) in artifacts.exercises.items"
@@ -85,7 +108,7 @@
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
-import { Copy, Check } from 'lucide-vue-next';
+import { Copy, Check, RefreshCw } from 'lucide-vue-next';
 import { ArtifactKind, GenerationTaskStatus } from '@skill/shared';
 import type { NodeArtifactsResponse } from '@skill/shared';
 
@@ -97,7 +120,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'retry', kind: ArtifactKind): void;
   (e: 'request-exercises'): void;
+  (e: 'regenerate', kind: ArtifactKind): void;
 }>();
+
+/** 只有就绪的产物才提供「重新生成」；未就绪/失败已有各自的提示与重试 */
+function canRegenerate(status: GenerationTaskStatus): boolean {
+  return status === GenerationTaskStatus.READY;
+}
 
 const copiedIndex = ref<number | null>(null);
 

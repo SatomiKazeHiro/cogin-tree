@@ -74,6 +74,8 @@
             @status-change="handleStatusChange"
             @retry-artifact="retryArtifact"
             @request-exercises="generateExercises"
+            @regenerate-node="regenerateNode"
+            @regenerate-artifact="regenerateArtifact"
           />
         </div>
       </Transition>
@@ -139,6 +141,8 @@ const {
   ensureCoreText,
   generateExercises,
   retryArtifact,
+  regenerateNode,
+  regenerateArtifact,
 } = useSkillTreePage(route.params.id as string);
 
 function noop() {}

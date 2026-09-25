@@ -29,6 +29,15 @@
         >
           {{ data.label }}
         </h3>
+        <!-- 过期徽标：今天只靠配色/透明度表示过期，用户根本看不出来 -->
+        <span
+          v-if="outdatedBadge"
+          class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-[600] tracking-wider"
+          :class="outdatedBadge.class"
+          :title="outdatedBadge.title"
+        >
+          {{ outdatedBadge.label }}
+        </span>
         <span
           v-if="learningStatusDot"
           class="ml-auto h-2 w-2 shrink-0 rounded-full"
@@ -134,6 +143,32 @@ const learningStatusDot = computed(() => {
 });
 
 const isOutdatedIII = computed(() => props.data.status === NodeStatus.OUTDATED_III);
+
+/** 过期徽标：I/II 提示「建议重新生成」，III 提示「主题已淘汰，建议删除」 */
+const outdatedBadge = computed(() => {
+  switch (props.data.status) {
+    case NodeStatus.OUTDATED_I:
+      return {
+        label: '过期 I',
+        class: 'bg-elevated text-muted',
+        title: '内容可能轻微过时，建议重新生成',
+      };
+    case NodeStatus.OUTDATED_II:
+      return {
+        label: '过期 II',
+        class: 'bg-elevated text-secondary',
+        title: '内容明显过时，建议重新生成',
+      };
+    case NodeStatus.OUTDATED_III:
+      return {
+        label: '过期 III',
+        class: 'bg-danger/10 text-danger',
+        title: '主题本身已被淘汰，建议删除该节点',
+      };
+    default:
+      return null;
+  }
+});
 
 const canCollapse = computed(() => {
   return props.data.type === 'l1' && props.data.hasChildren;

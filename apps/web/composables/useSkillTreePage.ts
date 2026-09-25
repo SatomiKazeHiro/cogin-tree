@@ -345,6 +345,49 @@ export function useSkillTreePage(treeId: string) {
     }
   }
 
+  /**
+   * 重新生成后同步节点时效状态到图上（后端可能把 OUTDATED_I/II 清回 ACTIVE）。
+   * 不重拉整棵树，避免打断当前交互。
+   */
+  function applyNodeStatus(nodeId: string, status: NodeArtifactsResponse['nodeStatus']) {
+    const node = tree.value?.nodes.find((n) => n.id === nodeId);
+    if (node) {
+      node.status = status;
+    }
+    rebuildGraph();
+  }
+
+  /** 节点级「重新生成」：重生成正文 + 作废下游（下游按消费时机重新生成） */
+  async function regenerateNode(nodeId: string) {
+    try {
+      const next = await api<NodeArtifactsResponse>(`/nodes/${nodeId}/regenerate`, {
+        method: 'POST',
+      });
+      storeArtifacts(nodeId, next);
+      applyNodeStatus(nodeId, next.nodeStatus);
+      toast.success('已重新生成');
+    } catch (err) {
+      console.error('[useSkillTreePage] regenerateNode failed', err);
+      toast.error(err instanceof Error ? err.message : '重新生成失败');
+    }
+  }
+
+  /** 单产物「重新生成」：只换这一类，不影响其他区块 */
+  async function regenerateArtifact(nodeId: string, kind: ArtifactKind) {
+    try {
+      const next = await api<NodeArtifactsResponse>(
+        `/nodes/${nodeId}/artifacts/${kind}/regenerate`,
+        { method: 'POST' },
+      );
+      storeArtifacts(nodeId, next);
+      applyNodeStatus(nodeId, next.nodeStatus);
+      toast.success('已重新生成');
+    } catch (err) {
+      console.error('[useSkillTreePage] regenerateArtifact failed', err);
+      toast.error(err instanceof Error ? err.message : '重新生成失败');
+    }
+  }
+
   async function handleStatusChange(nodeId: string, status: NodeLearningStatus) {
     try {
       await api(`/skill-trees/${treeId}/nodes/${nodeId}/learning-status`, {
@@ -390,5 +433,7 @@ export function useSkillTreePage(treeId: string) {
     ensureCoreText,
     generateExercises,
     retryArtifact,
+    regenerateNode,
+    regenerateArtifact,
   };
 }
