@@ -45,8 +45,9 @@ export class GenerationTask {
   @Column({ name: 'started_at', nullable: true })
   startedAt?: Date;
 
-  @Column({ name: 'finished_at', nullable: true })
-  finishedAt?: Date;
+  /** 同 model：要写 null（作废依赖产物时清空）就必须显式声明列类型 */
+  @Column({ name: 'finished_at', type: 'timestamp', nullable: true })
+  finishedAt?: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

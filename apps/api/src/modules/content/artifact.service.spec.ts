@@ -2,7 +2,13 @@ import { ArtifactService } from './artifact.service';
 import { NodeContent } from './entities/node-content.entity';
 import { CodeExample } from './entities/code-example.entity';
 import { Exercise } from './entities/exercise.entity';
-import { ArtifactKind, GenerationTaskStatus, NodeLevel } from '@skill/shared';
+import { GenerationTask } from './entities/generation-task.entity';
+import {
+  ArtifactKind,
+  GenerationTaskStatus,
+  NodeLevel,
+  NodeStatus,
+} from '@skill/shared';
 
 /**
  * 说明（相对计划的一处偏差）：
@@ -28,7 +34,7 @@ describe('ArtifactService', () => {
     generateL3Exercises: jest.Mock;
   };
   let treeAccess: { assertNodeOwner: jest.Mock };
-  let nodeRepo: { findOne: jest.Mock };
+  let nodeRepo: { findOne: jest.Mock; update: jest.Mock };
   let treeRepo: { findOne: jest.Mock };
   let contentRepo: {
     findOne: jest.Mock;
@@ -39,6 +45,7 @@ describe('ArtifactService', () => {
   let txContent: typeof contentRepo;
   let txCode: { create: jest.Mock; save: jest.Mock; delete: jest.Mock };
   let txExercise: { create: jest.Mock; save: jest.Mock; delete: jest.Mock };
+  let txTask: { update: jest.Mock };
 
   /** 内存假库 */
   let db: {
@@ -54,7 +61,11 @@ describe('ArtifactService', () => {
     level: NodeLevel.L2,
     title: 'L2 主题',
     description: 'd',
+    status: NodeStatus.ACTIVE,
   };
+
+  /** 假库里的节点行（`assertNodeOwner` 返回它；`nodeRepo.update` 会真的改它） */
+  let nodeRow: typeof node;
 
   beforeEach(() => {
     db = { content: null, codeExamples: [], exercises: [] };
@@ -98,12 +109,14 @@ describe('ArtifactService', () => {
       }),
     };
     txContent = contentRepo;
+    txTask = { update: jest.fn(async () => undefined) };
 
     manager = {
       getRepository: jest.fn((e: unknown) => {
         if (e === NodeContent) return contentRepo;
         if (e === CodeExample) return txCode;
         if (e === Exercise) return txExercise;
+        if (e === GenerationTask) return txTask;
         throw new Error('unexpected entity');
       }),
     };
@@ -126,8 +139,15 @@ describe('ArtifactService', () => {
         exercises: [{ question: 'Q', options: ['a', 'b'], correctIndex: 0, explanation: 'E' }],
       })),
     };
-    treeAccess = { assertNodeOwner: jest.fn(async () => node) };
-    nodeRepo = { findOne: jest.fn(async () => ({ id: 'l1', title: 'L1' })) };
+    nodeRow = { ...node };
+    treeAccess = { assertNodeOwner: jest.fn(async () => nodeRow) };
+    nodeRepo = {
+      findOne: jest.fn(async () => ({ id: 'l1', title: 'L1' })),
+      // 假库语义：真的把状态改掉，后续 assertNodeOwner 读到的是新值
+      update: jest.fn(async (_criteria: unknown, patch: { status?: NodeStatus }) => {
+        if (patch.status) nodeRow = { ...nodeRow, status: patch.status };
+      }),
+    };
     treeRepo = { findOne: jest.fn(async () => ({ id: 't1', name: 'T' })) };
 
     service = new ArtifactService(
@@ -144,7 +164,7 @@ describe('ArtifactService', () => {
   it('coreText：认领成功 → 调 AI → 单事务写 node_contents → markReady', async () => {
     await service.generateArtifact('n1', 'u1', ArtifactKind.L3_CORE_TEXT);
 
-    expect(tasks.claim).toHaveBeenCalledWith('n1', ArtifactKind.L3_CORE_TEXT);
+    expect(tasks.claim).toHaveBeenCalledWith('n1', ArtifactKind.L3_CORE_TEXT, false);
     expect(ai.generateL3CoreText).toHaveBeenCalledWith(
       expect.objectContaining({ l2Title: 'L2 主题', skillTreeName: 'T' }),
       expect.objectContaining({ userId: 'u1', treeId: 't1', nodeId: 'n1' }),
@@ -255,5 +275,80 @@ describe('ArtifactService', () => {
 
     expect(view.coreText.status).toBe(GenerationTaskStatus.PENDING);
     expect(view.exercises.items).toEqual([]);
+  });
+
+  it('getArtifacts 带上节点时效状态（抽屉据此显示过期提示）', async () => {
+    nodeRow = { ...nodeRow, status: NodeStatus.OUTDATED_II };
+
+    const view = await service.getArtifacts('n1', 'u1');
+
+    expect(view.nodeStatus).toBe(NodeStatus.OUTDATED_II);
+  });
+
+  // ── 阶段 5：重新生成 ────────────────────────────────────────────────
+
+  it('重新生成 coreText：version 递增、依赖产物作废、OUTDATED_I 清回 ACTIVE', async () => {
+    db.content = { id: 'c1', nodeId: 'n1', coreText: '旧正文'.padEnd(60, '。'), version: 3 };
+    db.codeExamples = [{ title: 't', language: 'ts', code: 'c' }];
+    db.exercises = [{ question: 'Q', options: ['a', 'b'], correctIndex: 0, explanation: 'E' }];
+    nodeRow = { ...nodeRow, status: NodeStatus.OUTDATED_I };
+
+    const view = await service.regenerateNode('n1', 'u1');
+
+    // force 认领：READY 也要能重新生成
+    expect(tasks.claim).toHaveBeenCalledWith('n1', ArtifactKind.L3_CORE_TEXT, true);
+    // 覆盖式更新 + 版本递增（D9）
+    expect(db.content.version).toBe(4);
+    expect((db.content as { coreText: string }).coreText).toContain('核心内容');
+    // 依赖产物作废（D14）：内容行删除 + 任务置 PENDING
+    expect(db.codeExamples).toEqual([]);
+    expect(db.exercises).toEqual([]);
+    expect(txCode.delete).toHaveBeenCalled();
+    expect(txExercise.delete).toHaveBeenCalled();
+    expect(txTask.update).toHaveBeenCalledWith(
+      expect.objectContaining({ nodeId: 'n1' }),
+      expect.objectContaining({
+        status: GenerationTaskStatus.PENDING,
+        lastError: null,
+        finishedAt: null,
+      }),
+    );
+    // 过期标记清回 ACTIVE（D13）
+    expect(nodeRepo.update).toHaveBeenCalledWith({ id: 'n1' }, { status: NodeStatus.ACTIVE });
+    expect(view.nodeStatus).toBe(NodeStatus.ACTIVE);
+  });
+
+  it('重新生成 coreText：OUTDATED_III 不清（主题已淘汰，刷新正文不解决问题）', async () => {
+    db.content = { id: 'c1', nodeId: 'n1', coreText: '旧正文'.padEnd(60, '。'), version: 1 };
+    nodeRow = { ...nodeRow, status: NodeStatus.OUTDATED_III };
+
+    const view = await service.regenerateNode('n1', 'u1');
+
+    expect(nodeRepo.update).not.toHaveBeenCalled();
+    expect(view.nodeStatus).toBe(NodeStatus.OUTDATED_III);
+  });
+
+  it('重新生成练习题：不动正文版本、不作废代码示例', async () => {
+    db.content = { id: 'c1', nodeId: 'n1', coreText: '已有核心内容', version: 7 };
+    db.codeExamples = [{ title: 't', language: 'ts', code: 'c' }];
+    db.exercises = [{ question: 'old', options: ['a', 'b'], correctIndex: 0, explanation: 'E' }];
+
+    await service.regenerateArtifact('n1', 'u1', ArtifactKind.L3_EXERCISES);
+
+    expect(tasks.claim).toHaveBeenCalledWith('n1', ArtifactKind.L3_EXERCISES, true);
+    expect(db.content.version).toBe(7);
+    expect(db.codeExamples).toHaveLength(1);
+    expect(txCode.delete).not.toHaveBeenCalled();
+    expect(txExercise.delete).toHaveBeenCalled();
+    expect(nodeRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('他人正在生成时 force 也认领不到 → 不重复调 AI（重新生成同样幂等）', async () => {
+    tasks.claim.mockResolvedValue(false);
+
+    await service.regenerateNode('n1', 'u1');
+
+    expect(ai.generateL3CoreText).not.toHaveBeenCalled();
+    expect(tasks.markReady).not.toHaveBeenCalled();
   });
 });

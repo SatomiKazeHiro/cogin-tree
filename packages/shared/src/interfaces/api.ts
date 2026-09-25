@@ -56,6 +56,11 @@ export interface ArtifactExercise {
 
 /** GET /nodes/:id/artifacts 的响应：三类产物的状态 + 已就绪内容（前端分块渲染依据） */
 export interface NodeArtifactsResponse {
+  /**
+   * 节点当前时效状态。
+   * 抽屉据此显示过期提示与「重新生成」入口；前端在重新生成后就地更新图上节点，无需重拉整棵树。
+   */
+  nodeStatus: NodeStatus;
   coreText: ArtifactStatusView & { text: string | null };
   codeExamples: ArtifactStatusView & { items: ArtifactCodeExample[] };
   exercises: ArtifactStatusView & { items: ArtifactExercise[] };
