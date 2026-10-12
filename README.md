@@ -124,6 +124,17 @@ pnpm --filter ai-provider build
 pnpm --filter prompt-manager build
 ```
 
+沙箱内 pnpm 不可用时，直接用 tsc 重建（PowerShell）：
+
+```powershell
+node_modules\.bin\tsc.CMD -p packages/shared/tsconfig.json
+node_modules\.bin\tsc.CMD -p packages/shared/tsconfig.cjs.json
+node_modules\.bin\tsc.CMD -p packages/prompt-manager/tsconfig.json
+node_modules\.bin\tsc.CMD -p packages/ai-provider/tsconfig.json
+```
+
+> 在 DSH 沙箱内直接跑 `pnpm <script>` 会因管道 stdio 限制报 `EPERM`，请改用 `node_modules/.bin/*`（`jest` / `ts-node` / `nest` / `typeorm` 在 `apps/api/node_modules/.bin`，`vue-tsc` 在 `apps/web/node_modules/.bin`）。完整替代命令、验证基线与已踩过的坑见 [`AGENTS.md`](./AGENTS.md) 的「本机 / DSH 沙箱下的执行方式」。
+
 ---
 
 ## 项目结构
@@ -136,12 +147,14 @@ pnpm --filter prompt-manager build
 ├── packages/
 │   ├── shared/              # 共享枚举、实体接口、常量
 │   ├── ai-provider/         # AI Provider 抽象与实现
-│   └── prompt-manager/      # Prompt 模板管理
+│   └── prompt-manager/      # Prompt 模板 + zod 契约层
 ├── scripts/
 │   └── dev.js               # 同时启动 API + Web
 ├── docs/
 │   ├── DESIGN.md            # 视觉/设计系统文档
-│   └── 系统架构设计.md       # 系统架构与数据模型
+│   ├── 系统架构设计.md       # 系统架构与数据模型
+│   ├── specs/               # 设计文档（AI 契约层与数据流重构等）
+│   └── plans/               # 分阶段实施计划 + 验证记录 + 下一阶段交接文档
 ├── .env.example             # 环境变量示例
 ├── pnpm-workspace.yaml      # pnpm workspace 配置
 └── README.md                # 本文件
@@ -189,8 +202,8 @@ pnpm --filter prompt-manager build
   ```
 
 - AI Provider 配置只读取 `.env`，不再从数据库/设置页读取。
-- TypeORM 在非生产环境启用 `synchronize: true`，生产环境请关闭并改用迁移。
-- 后端已有 Jest 单元测试（`pnpm --filter api test`，测试文件位于 `apps/api/src` 下、以 `.spec.ts` 结尾）；前端与 `packages/` 下各包暂无测试。
+- TypeORM `synchronize: false`（**全环境**），schema 变更一律走迁移（`apps/api/src/migrations/`，当前 2 个），命令见 `AGENTS.md` 的「数据库迁移」；生产环境需显式执行 `migration:run`（当前无自动迁移入口）。
+- 后端已有 Jest 单元测试（测试文件位于 `apps/api/src` 下、以 `.spec.ts` 结尾），当前 **16 suites / 91 tests** 全绿；命令见 `AGENTS.md` 的「本机 / DSH 沙箱下的执行方式」。前端与 `packages/` 下各包暂无测试。
 - 推荐没有定时任务：用户访问推荐接口时按 3 天 TTL 判断，已过期则先返回旧推荐并在后台异步刷新。
 
 ---
@@ -203,7 +216,7 @@ pnpm --filter api test          # 直接跑 Jest
 pnpm --filter api test -- src/modules/interview   # 只跑某个路径下的测试
 ```
 
-当前覆盖：`extractJson` 解析分支、推荐 TTL、注册/登录、AI 分析建议流、面试题按节点聚合与懒生成。
+当前覆盖（16 个 suite / 91 个用例）：`extractJson` 解析分支、推荐 TTL、注册/登录、AI 分析建议流、面试题按节点聚合与懒生成、产物状态机与编排（含重新生成）、树归属校验、树/节点服务、内容读写、AI 调用与审计、数据库配置断言、学习记录 DTO 等。
 
 ---
 
@@ -211,7 +224,8 @@ pnpm --filter api test -- src/modules/interview   # 只跑某个路径下的测�
 
 - [DESIGN.md](./docs/DESIGN.md) — 视觉与设计系统
 - [系统架构设计.md](./docs/系统架构设计.md) — 系统架构与数据模型
-- [AGENTS.md](./AGENTS.md) — AI 助手项目指南
+- [docs/plans/](./docs/plans/) — 分阶段实施计划、验证记录与下一阶段交接文档
+- [AGENTS.md](./AGENTS.md) — AI 助手项目指南（含本机/沙箱执行命令与验证基线）
 
 ---
 

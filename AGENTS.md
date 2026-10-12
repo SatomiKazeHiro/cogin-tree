@@ -21,7 +21,7 @@
 
 - **前端**：Vue 3 + Nuxt 3 + Pinia + Tailwind CSS v4（alpha）+ `@vue-flow/core`。
 - **后端**：NestJS 10 + TypeORM + PostgreSQL + Passport JWT。
-- **工作区包**：`@skill/shared`（枚举/DTO）、`@skill/ai-provider`（AI Provider 抽象）、`@skill/prompt-manager`（Prompt 模板管理）。
+- **工作区包**：`@skill/shared`（枚举/DTO）、`@skill/ai-provider`（AI Provider 抽象）、`@skill/prompt-manager`（Prompt 模板 + zod 契约层）。
 - **包管理器**：pnpm 9.0.0（在根 `package.json` 的 `packageManager` 中锁定），要求 Node.js >= 20。
 - **任务编排**：根目录使用 `turbo`（v2），`turbo.json` 已配置：`build/typecheck/test` 依赖 `^build`（workspace 包先构建），并启用任务缓存。
 
@@ -37,12 +37,14 @@ D:/Git/personal/cogni-tree
 ├── packages/
 │   ├── shared/              # 共享枚举、实体接口、常量（@skill/shared）
 │   ├── ai-provider/         # IAIProvider + DeepSeek/OpenAI-compatible/Mock 实现
-│   └── prompt-manager/      # Prompt 模板与 JSON 解析器
+│   └── prompt-manager/      # Prompt 模板 + zod 契约层（stage 0–8 共 11 个）
 ├── scripts/
 │   └── dev.js               # 同时启动 API + Web 开发服务器（先清理 3001/3002 端口）
 ├── docs/
 │   ├── DESIGN.md            # 视觉/设计系统文档（英文）
-│   └── 系统架构设计.md      # 系统架构与数据模型文档（中文）
+│   ├── 系统架构设计.md      # 系统架构与数据模型文档（中文）
+│   ├── specs/               # 设计文档（如「AI 契约层与数据流重构」，含 D1–D12 决策）
+│   └── plans/               # 分阶段实施计划 + 验证记录 + 下一阶段交接文档
 ├── .env                     # 本地环境变量（已 gitignore，参考 .env.example）
 ├── .env.example             # 环境变量示例
 ├── pnpm-workspace.yaml      # workspace: apps/*, packages/*
@@ -57,6 +59,7 @@ D:/Git/personal/cogni-tree
 |------|------|
 | `auth` | JWT 注册/登录、`JwtStrategy`、`JwtAuthGuard` |
 | `user` | 用户/用户画像（`User`、`UserProfile`）CRUD |
+| `tree-access` | 树归属校验（`TreeAccessService`）：`skill-tree` / `tree-node` / `content` / `interview` / `analysis` 的读写端点统一经它做 owner 校验，越权抛 **403**（而非 404） |
 | `portrait` | 肖像问卷题目与提交、AI 生成肖像摘要、原始答案落库（`PortraitAnswer`） |
 | `skill-tree` | 技能树（`SkillTree`）与 L1 节点（`TreeNode`）CRUD、自动生成 L1 |
 | `tree-node` | 节点展开（生成 L2）、子节点查询、节点编辑删除 |
@@ -96,6 +99,7 @@ D:/Git/personal/cogni-tree
 | `components/EmptyState.vue` | 空状态占位组件 |
 | `composables/` | `useApi`、`useAuthStore`、`useTreeLayout`、`useSkillTreePage`、`usePageHeader`、`useToast`、`useConfirm`、`useTheme` |
 | `utils/learning-status.ts` | 学习状态相关的纯函数工具 |
+| `utils/highlight.ts` | 语法高亮（highlight.js slim build + 语言别名 + 自写 Vue grammar；未注册语言降级为转义纯文本）；配色 token 是 `tailwind.css` 里的 `--code-*`（亮/暗两套） |
 | `middleware/auth.ts` | 未登录用户重定向到 `/login`（`skill-token` cookie） |
 | `assets/css/tailwind.css` | Tailwind v4 主题与设计 token |
 
@@ -186,6 +190,8 @@ pnpm test
 pnpm lint
 ```
 
+> 上面是**常规（非沙箱）**执行方式。在 DSH 沙箱内直接跑 `pnpm <script>` 会 `EPERM` —— 本机执行的替代方式见下文「本机 / DSH 沙箱下的执行方式」。
+
 ### 工作区包构建
 
 `@skill/shared`、`@skill/ai-provider`、`@skill/prompt-manager` 都需要先编译为 `dist/`：
@@ -207,6 +213,61 @@ pnpm dev
 > 原因：`shared` 同时输出 ESM (`dist/esm/`) 与 CJS (`dist/cjs/`)，类型定义在 `dist/types/`；Vite 会预打包缓存；不清理缓存会导致前端拿到旧类型/值。
 > `@skill/shared` 的 `package.json` 已配置 `exports` 字段，`apps/web/nuxt.config.ts` 中已加入 `build.transpile: ['@skill/shared']`，以兼容 Nuxt 生产构建的 ESM/CJS 互操作。
 
+### 数据库迁移
+
+`synchronize: false` 下，schema 变更**只能**走迁移（`apps/api/src/migrations/`）：
+
+```bash
+pnpm --filter api migration:run      # 应用迁移
+pnpm --filter api migration:revert   # 回滚最后一个
+pnpm --filter api migration:generate -- src/migrations/<Name>   # 由实体差异生成
+pnpm --filter api schema:verify      # 结构断言（连真实库，输出 SCHEMA OK）
+```
+
+> 初始迁移是「空库 `migration:generate` → 人工评审」的产物。**不要**为了省事把 `synchronize` 打开。
+
+### 本机 / DSH 沙箱下的执行方式（实测）
+
+**`pnpm <script>` 与 `pnpm add` 在沙箱内会 `EPERM`**：pnpm 是打包二进制，会 `spawnSync node --version` 并用管道捕获输出，而沙箱禁止这类管道 stdio。**不要反复重试同一条 pnpm 命令**——改用直接调用 `node_modules/.bin/*`，或对该条命令申请一次权限升级（装依赖还需 `--store-dir "D:\.pnpm-store\v3"` + `$env:PNPM_HOME=<workspace>/.pnpm-home`）。
+
+bin 的位置（根 `node_modules/.bin` 只有 `tsc` 与 `turbo`；`ts-node` / `jest` / `nest` / `typeorm` 在 `apps/api/node_modules/.bin`；`vue-tsc` 在 `apps/web/node_modules/.bin`）：
+
+```powershell
+# 类型检查
+cd apps/api;  node_modules\.bin\tsc.CMD --noEmit
+cd apps/web;  node_modules\.bin\vue-tsc.CMD --noEmit -p tsconfig.json   # 先看下方警告
+
+# 测试（必须 --runInBand：多 worker 会因 spawn EPERM 失败）
+cd apps/api;  node_modules\.bin\jest.CMD --runInBand
+
+# 结构断言（连真实库）
+cd apps/api;  node_modules\.bin\ts-node.CMD scripts/verify-schema.ts
+
+# 契约自检（三个都要输出 SELFCHECK OK）
+cd packages/prompt-manager
+..\..\apps\api\node_modules\.bin\ts-node.CMD src/prompt-engine.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node.CMD src/prompt-manager.selfcheck.ts
+..\..\apps\api\node_modules\.bin\ts-node.CMD src/stages.selfcheck.ts
+
+# 重建工作区包 dist（在仓库根执行；jest / nest / ts-node 运行时读 dist，tsc 类型检查读 src）
+node_modules\.bin\tsc.CMD -p packages/shared/tsconfig.json
+node_modules\.bin\tsc.CMD -p packages/shared/tsconfig.cjs.json
+node_modules\.bin\tsc.CMD -p packages/prompt-manager/tsconfig.json
+node_modules\.bin\tsc.CMD -p packages/ai-provider/tsconfig.json
+```
+
+⚠️ **`vue-tsc` 并不等于「不依赖 `.nuxt`」**：`apps/web/tsconfig.json` 首行是 `"extends": "./.nuxt/tsconfig.json"`，它**必须读**该文件，只是不重写它。干净 checkout 上 `.nuxt/` 不存在 → 必须先 `nuxt prepare`（web 包的 `postinstall` 就是它，但别依赖它一定被执行），再跑 `vue-tsc --noEmit`。选 `vue-tsc` 而非 `nuxt typecheck` 的理由仅是前者不写 `.nuxt/schema/*.json`（该目录在 Windows 上可能被权限挡住）。
+
+其他已踩过的坑：
+
+- **`psql -c` 里禁止中文字面量**（会报 `无效的 "UTF8" 编码字节顺序`）：要么纯 ASCII，要么写 UTF-8 的 `.sql` 文件用 `-f` 执行。psql 不在 PATH：`D:\Environment\PostgreSQL\18\bin\psql.exe`，密码取 `.env` 的 `DB_PASSWORD`。
+- **`nuxt dev` 与 `playwright` 各需一次权限升级**：前者要 spawn esbuild，后者的浏览器守护进程写在工作区之外的 `%LOCALAPPDATA%`。
+- **改前端样式/主题后硬刷新**：HMR 对 CSS 变量不一定即时生效。
+- **删除文件在当前沙箱下常被拒**（根目录有一条「禁止删除子项」规则），需要删临时文件时请手工删。
+- **`generation_tasks.attempts` 是「认领次数」**，不是 AI 调用次数；每次真实调用（含重试各一行）记在 `ai_generations`。
+
+基线（2026-09-25 实测，改动后请对照）：`apps/api` `tsc --noEmit` exit 0 · `jest --runInBand` **16 suites / 91 tests 全绿** · `apps/web` `vue-tsc --noEmit` exit 0 · 三个契约自检 `SELFCHECK OK` · `verify-schema.ts` `SCHEMA OK`（26 条断言：0 个 NO ACTION 外键、19 个非唯一索引）· `packages/prompt-manager/dist` 中 0 个 `*selfcheck*` 产物。
+
 ---
 
 ## 构建与运行细节
@@ -222,7 +283,7 @@ pnpm dev
 - 异常过滤：`GlobalExceptionFilter` 将异常统一为 `{ code, data: null, message }`
 - TypeORM 实体采用**显式数组导入**（`database.config.ts`），未使用 glob，避免 ESM/CJS 问题。当前注册的实体（17 个）：`User`、`UserProfile`、`PortraitQuestion`、`PortraitAnswer`、`SkillTree`、`TreeNode`、`NodeContent`、`Exercise`、`CodeExample`、`GenerationTask`、`AiGeneration`、`LearningRecord`、`NodeLearningRecord`、`Recommendation`、`InterviewQuestion`、`AnalysisJob`、`SuggestedChange`。
   > 注意：`packages/shared` 中的 `GlobalConfig` 接口**没有**对应实体或模块，未注册。
-- `synchronize: true` 仅在 `NODE_ENV !== 'production'` 时启用。
+- `synchronize: false`（**全环境关闭**）：schema 变更一律走迁移，不允许靠实体自动同步。当前 2 个迁移（`InitialSchema1789536289878`、`CascadeDeleteUserProfile1789537862755`）在 `config/database.config.ts` 中显式注册，CLI 入口是 `config/data-source.ts`；命令见「数据库迁移」。
 - `bcryptjs` 用于密码哈希，避免 Windows 原生编译问题。
 - NestJS 编译器使用 webpack（`nest-cli.json` 中 `webpack: true`）。
 
@@ -277,6 +338,7 @@ pnpm dev
 - `src/interfaces/entities.ts`：实体 TypeScript 接口。
 - `src/interfaces/api.ts`：前后端实际共用的响应 DTO（`DashboardResponse`、`CurrentLearningItem`）；接口定义以实际消费为准，不预留未使用的 DTO。
 - `src/constants/index.ts`：常量（当前仅 `MAX_RECOMMENDATIONS`）。
+- `src/index.ts`：用 `export *` 转发 enums / interfaces / constants，新增枚举**无需**手工同步导出清单。
 
 后端 TypeORM 实体与 `shared` 中的接口分别维护，字段名/含义需保持一致。
 
@@ -289,9 +351,11 @@ pnpm dev
 
 ### Prompt Manager (`packages/prompt-manager`)
 
-- `PromptTemplate<TInput, TOutput>` 接口：`version`、`build(input)`、`parse(raw)`。
+- 契约层（`src/prompt-engine.ts`）：`PromptTemplate` 带 `version` / `schema`（zod v4）/ `build` / `parse`；`defineTemplate()` 组装模板，并**由 schema 自动派生提示词里的「输出格式」段**（`outputFormatSection()` 走 `z.toJSONSchema`）——校验与提示词同源，不可能漂移。
+- 失败归类：`AiContractError`（`invalid_json` / `truncated` / `schema_mismatch`，带字段级 `issues`）；`extractJson(raw)` 仍是语法层（去 Markdown 代码块 + 平衡括号扫描 + 截断判别）。`ai-integration` 统一在契约失败时把 issues 回灌模型重试一次。
+- **写 schema 的约束**：必须保持 JSON-Schema 可表示（禁 `z.date()` / `z.transform()` / `z.custom()`）；跨字段不变量走 `invariants` 字段。
+- 契约自检（`*.selfcheck.ts`，**已从 dist 排除、不随包发布**）：`prompt-engine.selfcheck.ts`、`prompt-manager.selfcheck.ts`、`stages.selfcheck.ts` —— 三个都要输出 `SELFCHECK OK`。
 - `PromptManager.build(stage, input)` / `PromptManager.parse(stage, raw)` 是统一入口。
-- `extractJson(raw)` 会去除 Markdown 代码块后 `JSON.parse`。
 - 当前已实现的 stage（`src/templates/`）：
   - `knowledge-points`（stage 0）
   - `l1-outline`（stage 1）
@@ -364,7 +428,7 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 ## 测试策略
 
-- 后端已有 Jest 单元测试（`apps/api/jest.config.js`，ts-jest，测试文件与源码同目录、以 `.spec.ts` 结尾），命令为 `pnpm --filter api test`。
+- 后端已有 Jest 单元测试（`apps/api/jest.config.js`，ts-jest，测试文件与源码同目录、以 `.spec.ts` 结尾）。当前 **16 suites / 91 tests 全绿**；命令见「本机 / DSH 沙箱下的执行方式」（沙箱内直接调 `apps/api/node_modules/.bin/jest.CMD --runInBand`，走 `pnpm --filter api test` 会 EPERM）。
 - 当前覆盖的关键路径：
   - `modules/ai-integration/extract-json.spec.ts`：`@skill/prompt-manager` 的 `extractJson` 各类解析/失败分支；
   - `modules/recommendation/recommendation.service.spec.ts`：推荐 TTL 判断与「过期先返回、后台刷新」逻辑；
@@ -373,9 +437,10 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
   - `modules/interview/interview.service.spec.ts`：按节点聚合分组、懒生成触发与并发去重、生成失败降级；
   - `modules/content/generation-task.service.spec.ts`：产物状态机的原子认领 SQL（含 `on conflict` 条件、120s 陈旧阈值、**force 重新认领**）、`markReady`/`markFailed` 语义；
   - `modules/content/artifact.service.spec.ts`：产物编排（幂等认领、coreText 前置依赖、失败标记并抛出、无 task 行时按内容兜底派生状态、**重新生成：version 递增 / 依赖产物作废 / 过期标记清回 ACTIVE**）。
+  - 其余 9 个 suite（按文件名）：`tree-access.service`、`skill-tree.service`、`tree-node.service`、`content.service`、`ai-integration.service`、`ai-generation.service`、`provider-contract`、`database.config`、`learning-record/dto.spec`。
 - 测试方式：直接 `new Service(...)` 传入 mock 依赖，不依赖 Nest 测试模块与真实数据库。
 - 前端与 packages 下各包仍无测试；新增功能时应优先为纯逻辑、可确定的代码补测试（AI 生成内容本身不可测）。
-- 日常验证仍以 `pnpm typecheck` 与手动运行 `pnpm dev` 为辅。
+- 日常验证以「本机 / DSH 沙箱下的执行方式」里的几条命令为辅（注意 pnpm 会 EPERM）；涉及页面/交互时手动跑 `pnpm dev`（需一次权限升级）。
 
 ---
 
@@ -385,7 +450,7 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 - AI Provider 配置已从数据库/设置页移除，**只读 `.env`**。
 - JWT 通过 `Authorization: Bearer <token>` 传递；前端存在 `skill-token` cookie（7 天）。
 - CORS 默认允许 `http://localhost:3001`，生产环境需设置 `WEB_URL`。
-- TypeORM 在非生产环境启用 `synchronize: true`，生产环境务必关闭并改用迁移。
+- TypeORM `synchronize: false`（全环境），schema 变更只能走迁移。生产环境需显式执行 `migration:run`——当前**没有**自动迁移入口/启动钩子。
 - 当前没有 Docker、CI/CD、HTTPS 或部署脚本；本地开发时需注意端口与数据库安全。
 
 ---
@@ -426,9 +491,9 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 ## 给 AI 助手的工作建议
 
-- 修改工作区包后务必重新 build 并清理前端缓存。
+- 修改工作区包后务必重新 build（命令见「本机 / DSH 沙箱下的执行方式」）并清理前端缓存。
 - 新增后端模块时，记得在 `AppModule` 中导入，并在 `database.config.ts` 中注册新实体。
 - 新增 Prompt stage 时，在 `packages/prompt-manager/src/prompt-manager.ts` 与 `src/index.ts` 中注册。
 - 保持 `.env.example` 与代码同步；不要修改 `.env` 的内容结构而不更新示例。
 - 样式改动优先通过 Tailwind token 变量完成，保持设计系统一致。
-- 已有测试（见「测试策略」）；改动后至少跑 `pnpm typecheck` 与 `pnpm --filter api test`，涉及页面/交互时再手动跑 `pnpm dev` 验证。
+- 有测试（见「测试策略」）；改动后至少跑 `tsc --noEmit`、`jest --runInBand` 与三个契约自检（命令与基线见「本机 / DSH 沙箱下的执行方式」——**沙箱内 `pnpm <script>` 会 EPERM，别重试**），涉及页面/交互时再手动跑 `pnpm dev` 验证。

@@ -15,7 +15,7 @@
 | 项 | 值 |
 |---|---|
 | 分支 | `main`，跟踪 `origin/main`（`git@github.com:SatomiKazeHiro/cogin-tree.git`） |
-| 最新提交 | `76aa5f6`（本文档提交后为下一笔） |
+| 最新提交 | 以 `git log -1` 为准（本文件自身提交于 `1e99734`；其后可能已有新提交） |
 | 已完成 | 阶段 1–2 表结构/授权、阶段 3 AI 契约层、阶段 4 产物状态机与 stage 拆分、阶段 5 过期→重新生成、代码块语法高亮 |
 | 数据库 | PostgreSQL 18.4 / 库 `skill_learning`，走 migration（`synchronize: false`）。库里只有本地测试数据 |
 | 结构 | pnpm monorepo：`apps/api`（NestJS 10 + TypeORM + PG）、`apps/web`（Nuxt 3 + Vue 3 + Pinia + Tailwind v4 + @vue-flow）、`packages/shared`、`packages/ai-provider`、`packages/prompt-manager` |
@@ -49,7 +49,7 @@
    - 三个契约自检：`packages/prompt-manager` 下 `ts-node src/prompt-engine.selfcheck.ts`、`src/prompt-manager.selfcheck.ts`、`src/stages.selfcheck.ts`（三个都输出 `SELFCHECK OK`）
    - 可选（需要 Postgres service container）：`apps/api/scripts/verify-schema.ts` → `SCHEMA OK`
 2. **二选一处理 lint**：要么加 `eslint` + `typescript-eslint` + `eslint-plugin-vue` 并配好，要么**删掉 `lint` 脚本**（当前它只会误导）。建议先删，等有精力再正经引入。
-3. 顺手在 CI 里加 `pnpm --filter web exec vue-tsc --noEmit`（等价于 `nuxt typecheck`，但**不写 `.nuxt`**；见「沙箱坑」第 4 条）。
+3. 顺手在 CI 里加 web 类型检查。**`vue-tsc` 并不是「不依赖 `.nuxt`」**：`apps/web/tsconfig.json` 首行就是 `"extends": "./.nuxt/tsconfig.json"`，它**必须读**该文件，只是不重写它 —— 干净 checkout（CI 上）没有 `.nuxt/`，直接跑会报找不到 extends 目标。所以 CI 步骤必须是 **先 `nuxt prepare`、再 `vue-tsc --noEmit -p tsconfig.json`**；不要依赖 web 包的 `postinstall` 一定被执行（`pnpm install --frozen-lockfile` 默认会跑，但显式写一步更稳）。选 `vue-tsc` 而非 `nuxt typecheck` 的理由仅剩「不写 `.nuxt/schema/*.json`」（见「沙箱坑」第 4 条）。
 
 **验收**：推一个空提交或 PR，CI 全绿；把 CI 徽章或跑法写进 `AGENTS.md`。
 
@@ -99,7 +99,8 @@
 
 1. 选方案（**这里有一个必须留意的取舍**）：
    - **方案 A**：给 `ArtifactKind` 枚举加 `INTERVIEW_QA`，复用 `generation_tasks`。
-     ⚠️ `artifact_kind` 是 **PostgreSQL 原生枚举** `generation_tasks_artifact_kind_enum`，加值需要 `ALTER TYPE ... ADD VALUE`（**该语句不能在事务里回滚**），必须写成 migration 并单独验证。
+     `artifact_kind` 是 **PostgreSQL 原生枚举** `generation_tasks_artifact_kind_enum`（实测当前 3 个值：`L3_CORE_TEXT` / `L3_CODE_EXAMPLES` / `L3_EXERCISES`），加值需要 `ALTER TYPE ... ADD VALUE`。
+     ⚠️ **修正**（原文写「该语句不能在事务里回滚」，已过时）：PostgreSQL **12 起**允许 `ALTER TYPE ... ADD VALUE` 在事务块内执行，限制只剩「**同一事务内不能使用**新枚举值」。本项目是 PG 18.4，所以**不必**关掉 TypeORM 默认的迁移事务；只要保证「加值」与「插入/更新使用新值的行」**不在同一个迁移文件里**（拆成两个迁移，或第一个只加值）即可。
    - **方案 B**：不扩枚举，用「同一套条件 UPDATE 语义」为 interview 建一张小表（如 `interview_tasks(node_id UNIQUE, status, attempts, started_at, ...)`）。
    - **建议 A**：语义统一、少一张表；代价是一次枚举迁移。请在方案里写清回滚策略（`ADD VALUE` 不可逆，但留着不用也无害）。
 2. 改造 `interview.service.ts`：认领失败 → 直接返回当前聚合结果（幂等）；生成失败写 `FAILED` + `last_error` 并可重试（现在失败只是 log）。
@@ -123,6 +124,8 @@
 ---
 
 ## 四、环境与命令（新窗口必读）
+
+> 本节内容已并入 [`AGENTS.md`](../../AGENTS.md) 的「本机 / DSH 沙箱下的执行方式」（另有新增的「数据库迁移」一节）。这里保留全文仅供本次交接阅读；**以后只维护 `AGENTS.md` 那一份**，避免两处漂移。
 
 ### 常用命令
 
@@ -156,20 +159,22 @@ node_modules\.bin\tsc -p packages/ai-provider/tsconfig.json
 
 ### 验证基线（2026-09-25 实测，改动后请对照）
 
+> 本节数字已由独立会话逐条复跑核对：结果全部一致，仅「断言条数」一处已按实际输出修正为 26。
+
 | 检查 | 基线 |
 |---|---|
 | `apps/api` `tsc --noEmit` | exit 0 |
 | `apps/api` `jest --runInBand` | **16 suites / 91 tests 全绿** |
 | `apps/web` `vue-tsc --noEmit` | exit 0 |
 | 三个契约自检 | 三个 `SELFCHECK OK` |
-| `scripts/verify-schema.ts` | `SCHEMA OK`（24 条断言，含「0 个 NO ACTION 外键」「19 个非唯一索引」） |
+| `scripts/verify-schema.ts` | `SCHEMA OK`（**26** 条断言，含「0 个 NO ACTION 外键」「非唯一索引 19 个」） |
 | `packages/prompt-manager/dist` | 0 个 `*selfcheck*` 产物 |
 | `packages/shared` 导出 | `export *` 转发，12+ 枚举齐全（含 `NodeLevel.L3 = 3`） |
 
 ### 沙箱坑（都是踩过的，务必先读）
 
 1. **`pnpm <script>` / `pnpm add` 在沙箱内会 `EPERM`**（pnpm 是打包二进制，会 spawn node 并用管道捕获输出）。绕法：直接用 `node_modules/.bin/*`，或对那条命令申请一次 `sandbox_permissions: danger-full-access` 升级；装依赖还要 `--store-dir "D:\.pnpm-store\v3"` + `$env:PNPM_HOME=<workspace>/.pnpm-home`。
-2. **bin 的位置**：根 `node_modules/.bin` 只有 `tsc`；`ts-node` / `jest` / `nest` / `typeorm` 在 `apps/api/node_modules/.bin`；`vue-tsc` 在 `apps/web/node_modules/.bin`。
+2. **bin 的位置**：根 `node_modules/.bin` 只有 `tsc` 与 `turbo`；`ts-node` / `jest` / `nest` / `typeorm` 在 `apps/api/node_modules/.bin`；`vue-tsc` 在 `apps/web/node_modules/.bin`。
 3. **`nuxt dev` 与 `playwright-cli` 都需要一次权限升级**：前者要 spawn esbuild（管道 EPERM），后者的浏览器守护进程写在 `%LOCALAPPDATA%` 之外的工作区外。
 4. **`nuxt typecheck` 会写 `.nuxt/schema/*.json`**，该目录可能被 Windows 文件权限挡住（`EPERM`）。两个办法：改用 `vue-tsc`（不写 `.nuxt`，推荐），或修权限（见第 5 条）。
 5. **Windows 文件权限问题**：本机出现过「工作区内写入被拒」，用技能 `diagnose-windows-sandbox-acl` 的脚本修（一条命令同时诊断+修补，需一次升级；报告与回滚脚本落在 `D:\Git\personal\dsh-acl-recovery\`）。注意：**删除文件**在当前沙箱下常被拒（根目录有一条对所有用户的「禁止删除子项」规则），如需删除临时文件请手工删。
