@@ -9,9 +9,17 @@ export enum TreeType {
   INTERVIEW = 'INTERVIEW',
 }
 
+/**
+ * 节点层级。
+ *
+ * `L3 = 3` 是**保留值**：当前实现只生成/展示 L1、L2（L3 学习内容挂在 L2 节点的
+ * `node_contents` 上，不再建 L3 节点）。数据库枚举 `tree_nodes_level_enum` 里同样有 '3'。
+ * 之所以不删：删掉需要一次改写该枚举类型的迁移，而保留它不影响任何逻辑（仅占一个枚举值）。
+ */
 export enum NodeLevel {
   L1 = 1,
   L2 = 2,
+  /** 保留未用（见上方说明） */
   L3 = 3,
 }
 
