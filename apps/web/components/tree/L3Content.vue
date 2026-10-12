@@ -54,7 +54,7 @@
             </button>
           </div>
           <div class="overflow-x-auto">
-            <pre class="m-0 bg-transparent p-5"><code class="block bg-transparent font-mono text-[13px] leading-relaxed" :class="languageClass(example.language)" v-html="highlightCode(example.code, example.language)" /></pre>
+            <pre class="m-0 bg-transparent p-5"><code class="block bg-transparent font-mono text-[13px] leading-relaxed text-code-text" :class="languageClass(example.language)" v-html="highlightCode(example.code, example.language)" /></pre>
           </div>
         </article>
       </div>
@@ -106,11 +106,10 @@
 
 <script setup lang="ts">
 import MarkdownIt from 'markdown-it';
-import hljs from 'highlight.js';
-import 'highlight.js/styles/github.css';
 import { Copy, Check, RefreshCw } from 'lucide-vue-next';
 import { ArtifactKind, GenerationTaskStatus } from '@skill/shared';
 import type { NodeArtifactsResponse } from '@skill/shared';
+import { highlightCode } from '../../utils/highlight';
 
 const props = defineProps<{
   artifacts: NodeArtifactsResponse;
@@ -140,16 +139,8 @@ const md: MarkdownIt = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
-  highlight: (str: string, lang: string): string => {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(str, { language: lang }).value;
-      } catch {
-        // fall through
-      }
-    }
-    return md.utils.escapeHtml(str);
-  },
+  // 正文里的代码块与「代码演示」区块共用同一套高亮（含语言别名与降级），避免两处行为漂移
+  highlight: (str: string, lang: string): string => highlightCode(str, lang),
 });
 
 const renderedCoreText = computed(() => {
@@ -158,17 +149,6 @@ const renderedCoreText = computed(() => {
 
 function languageClass(lang: string) {
   return `language-${lang.toLowerCase()}`;
-}
-
-function highlightCode(code: string, lang: string) {
-  if (lang && hljs.getLanguage(lang)) {
-    try {
-      return hljs.highlight(code, { language: lang }).value;
-    } catch {
-      // fall through
-    }
-  }
-  return md.utils.escapeHtml(code);
 }
 
 async function copyCode(code: string, index: number) {
@@ -333,7 +313,95 @@ async function copyCode(code: string, index: number) {
   color: var(--text-primary);
 }
 
-:deep(pre code.hljs) {
-  background: transparent;
+/*
+ * 语法高亮调色板。
+ *
+ * 不再引入 highlight.js 的主题 CSS：那些主题是「一套固定 hex + 只适合一种底色」，
+ * 而本应用有亮/暗两套底色（--code-bg），主题文件没法按 data-theme 切换
+ * （先后 import 会全局互相覆盖，暗色下必然出现「白底配色画在黑底上」）。
+ *
+ * 这里按官方 github / github-dark 主题的**逐类取值**映射到 9 个语义 token
+ * （变量定义在 assets/css/tailwind.css，亮/暗各一套），因此观感与官方一致、又能随主题切换。
+ * 未列出的类（params / function / property / punctuation / subst）官方主题本身也不上色，
+ * 保持继承 --code-text。
+ */
+:deep(pre code) {
+  color: var(--code-text);
+}
+
+/* 注释 */
+:deep(.hljs-comment) {
+  color: var(--code-comment);
+  font-style: italic;
+}
+
+/* 红色系：关键字 / 类型 / 变量 / 文档标签 / 模板占位 */
+:deep(.hljs-keyword),
+:deep(.hljs-type),
+:deep(.hljs-variable),
+:deep(.hljs-doctag),
+:deep(.hljs-template-tag),
+:deep(.hljs-template-variable) {
+  color: var(--code-keyword);
+}
+
+/* 字符串系 */
+:deep(.hljs-string),
+:deep(.hljs-regexp) {
+  color: var(--code-string);
+}
+
+/* 蓝色系：数字 / 属性 / 元信息 / 运算符 / 选择器 / 字面量 / 小节 */
+:deep(.hljs-number),
+:deep(.hljs-attr),
+:deep(.hljs-attribute),
+:deep(.hljs-meta),
+:deep(.hljs-operator),
+:deep(.hljs-selector-class),
+:deep(.hljs-selector-id),
+:deep(.hljs-literal),
+:deep(.hljs-section) {
+  color: var(--code-number);
+}
+
+/* 实体名（函数 / 类） */
+:deep(.hljs-title) {
+  color: var(--code-title);
+}
+
+/* 橙色系：内建 / 符号 */
+:deep(.hljs-built_in),
+:deep(.hljs-builtin-name),
+:deep(.hljs-symbol) {
+  color: var(--code-builtin);
+}
+
+/* 绿色系：标签名 / 新增行 / 选择器 / 引用 */
+:deep(.hljs-tag),
+:deep(.hljs-name),
+:deep(.hljs-addition),
+:deep(.hljs-selector-tag),
+:deep(.hljs-selector-pseudo),
+:deep(.hljs-quote) {
+  color: var(--code-tag);
+}
+
+/* diff 删除行 */
+:deep(.hljs-deletion) {
+  color: var(--code-deletion);
+}
+
+/* 列表项圆点 */
+:deep(.hljs-bullet) {
+  color: var(--code-bullet);
+}
+
+/* 强调 */
+:deep(.hljs-emphasis) {
+  font-style: italic;
+}
+
+:deep(.hljs-strong) {
+  font-weight: 600;
 }
 </style>

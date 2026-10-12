@@ -46,6 +46,18 @@
   /* Code */
   --code-bg: #f0eee6;
   --code-text: #1f1e1d;
+
+  /* Code syntax（语法高亮调色板；取值等价于 highlight.js 官方 github 主题，
+     归并为 9 个语义 token，从而不必在组件里写死 hex） */
+  --code-comment: #6a737d;
+  --code-keyword: #d73a49;
+  --code-string: #032f62;
+  --code-number: #005cc5;
+  --code-title: #6f42c1;
+  --code-builtin: #e36209;
+  --code-tag: #22863a;
+  --code-deletion: #b31d28;
+  --code-bullet: #735c0f;
 }
 
 [data-theme="dark"] {
@@ -82,6 +94,18 @@
   /* Code */
   --code-bg: #1f1f1c;
   --code-text: #e8e7e2;
+
+  /* Code syntax（暗色专用调色板；等价于官方 github-dark 主题 ——
+     亮色那套是为白底设计的，直接放到 #1f1f1c 上会有不可读的颜色） */
+  --code-comment: #8b949e;
+  --code-keyword: #ff7b72;
+  --code-string: #a5d6ff;
+  --code-number: #79c0ff;
+  --code-title: #d2a8ff;
+  --code-builtin: #ffa657;
+  --code-tag: #7ee787;
+  --code-deletion: #ffdcd7;
+  --code-bullet: #f2cc60;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -108,6 +132,15 @@
     --success-bg: #1a3322;
     --code-bg: #1f1f1c;
     --code-text: #e8e7e2;
+    --code-comment: #8b949e;
+    --code-keyword: #ff7b72;
+    --code-string: #a5d6ff;
+    --code-number: #79c0ff;
+    --code-title: #d2a8ff;
+    --code-builtin: #ffa657;
+    --code-tag: #7ee787;
+    --code-deletion: #ffdcd7;
+    --code-bullet: #f2cc60;
   }
 }
 
