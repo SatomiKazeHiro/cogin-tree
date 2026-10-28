@@ -30,7 +30,18 @@ export const useApi = () => {
 
       return response as T;
     } catch (err) {
-      const fetchError = err as { data?: { message?: string }; message?: string };
+      const fetchError = err as {
+        status?: number;
+        response?: { status?: number };
+        data?: { message?: string };
+        message?: string;
+      };
+      const status = fetchError.status ?? fetchError.response?.status;
+      // token 过期/失效：清掉本地登录态并回登录页（/auth/* 自身的 401 是凭证错误，不跳转）
+      if (status === 401 && !path.startsWith('/auth/')) {
+        token.value = null;
+        await navigateTo('/login');
+      }
       const message = fetchError.data?.message || fetchError.message || '请求失败';
       throw new Error(message);
     }

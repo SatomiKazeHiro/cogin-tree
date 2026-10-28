@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   LearningStatus,
   RecommendationSource,
@@ -21,6 +21,7 @@ export class RecommendationService {
   private generating = new Map<string, Promise<Recommendation[]>>();
 
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(Recommendation)
     private recommendationRepo: Repository<Recommendation>,
     private userService: UserService,
@@ -111,31 +112,34 @@ export class RecommendationService {
     const expireAt = new Date();
     expireAt.setDate(now.getDate() + RECOMMENDATION_TTL_DAYS);
 
-    await this.recommendationRepo.update(
-      { userId, isActive: true },
-      { isActive: false },
-    );
+    // 「作废旧推荐 + 写入新推荐」必须在同一事务里：
+    // 分两步执行时，save 失败会让用户一条 active 推荐都不剩
+    return this.dataSource.transaction(async (manager) => {
+      const txRepo = manager.getRepository(Recommendation);
 
-    const recommendations = (result.recommendations || [])
-      .slice(0, MAX_RECOMMENDATIONS)
-      .map((item, index) =>
-        this.recommendationRepo.create({
-          userId,
-          title: item.title,
-          description: item.description,
-          reason: item.reason,
-          matchTags: Array.isArray(item.matchTags) ? item.matchTags : [],
-          suggestedMode: item.suggestedMode,
-          keywords: Array.isArray(item.keywords) ? item.keywords : [],
-          source: RecommendationSource.AI_GENERATED,
-          isActive: true,
-          sortOrder: index,
-          createdAt: now,
-          expireAt,
-        }),
-      );
+      await txRepo.update({ userId, isActive: true }, { isActive: false });
 
-    return this.recommendationRepo.save(recommendations);
+      const recommendations = (result.recommendations || [])
+        .slice(0, MAX_RECOMMENDATIONS)
+        .map((item, index) =>
+          txRepo.create({
+            userId,
+            title: item.title,
+            description: item.description,
+            reason: item.reason,
+            matchTags: Array.isArray(item.matchTags) ? item.matchTags : [],
+            suggestedMode: item.suggestedMode,
+            keywords: Array.isArray(item.keywords) ? item.keywords : [],
+            source: RecommendationSource.AI_GENERATED,
+            isActive: true,
+            sortOrder: index,
+            createdAt: now,
+            expireAt,
+          }),
+        );
+
+      return txRepo.save(recommendations);
+    });
   }
 
   async createSkillTreeFromRecommendation(
@@ -148,7 +152,7 @@ export class RecommendationService {
       where: { id: recommendationId, userId },
     });
     if (!recommendation) {
-      throw new Error('Recommendation not found');
+      throw new NotFoundException('Recommendation not found');
     }
 
     const tree = await this.skillTreeService.create(

@@ -266,7 +266,7 @@ node_modules\.bin\tsc.CMD -p packages/ai-provider/tsconfig.json
 - **删除文件在当前沙箱下常被拒**（根目录有一条「禁止删除子项」规则），需要删临时文件时请手工删。
 - **`generation_tasks.attempts` 是「认领次数」**，不是 AI 调用次数；每次真实调用（含重试各一行）记在 `ai_generations`。
 
-基线（2026-10-25 实测，改动后请对照）：`apps/api` `tsc --noEmit` exit 0 · `jest --runInBand` **16 suites / 97 tests 全绿** · `apps/web` `vue-tsc --noEmit` exit 0 · 三个契约自检 `SELFCHECK OK` · `verify-schema.ts` `SCHEMA OK`（26 条断言：0 个 NO ACTION 外键、19 个非唯一索引）· `packages/prompt-manager/dist` 中 0 个 `*selfcheck*` 产物。
+基线（2026-10-25 实测，改动后请对照）：`apps/api` `tsc --noEmit` exit 0 · `jest --runInBand` **16 suites / 100 tests 全绿** · `apps/web` `vue-tsc --noEmit` exit 0 · 三个契约自检 `SELFCHECK OK` · `verify-schema.ts` `SCHEMA OK`（26 条断言：0 个 NO ACTION 外键、19 个非唯一索引）· `packages/prompt-manager/dist` 中 0 个 `*selfcheck*` 产物。
 
 ---
 
@@ -276,7 +276,7 @@ node_modules\.bin\tsc.CMD -p packages/ai-provider/tsconfig.json
 
 - 入口：`apps/api/src/main.ts`
 - 全局前缀：`/api`
-- Swagger：`/api/docs`
+- Swagger：`/api/docs`（仅非生产环境挂载）
 - CORS：`process.env.WEB_URL` 或默认 `http://localhost:3001`（`credentials: true`）
 - 全局管道：`ValidationPipe({ whitelist: true, transform: true })`
 - 统一响应格式：`{ code: 200, data, message: 'success' }`（`TransformInterceptor`）
@@ -428,7 +428,7 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 ## 测试策略
 
-- 后端已有 Jest 单元测试（`apps/api/jest.config.js`，ts-jest，测试文件与源码同目录、以 `.spec.ts` 结尾）。当前 **16 suites / 97 tests 全绿**；命令见「本机 / DSH 沙箱下的执行方式」（沙箱内直接调 `apps/api/node_modules/.bin/jest.CMD --runInBand`，走 `pnpm --filter api test` 会 EPERM）。
+- 后端已有 Jest 单元测试（`apps/api/jest.config.js`，ts-jest，测试文件与源码同目录、以 `.spec.ts` 结尾）。当前 **16 suites / 100 tests 全绿**；命令见「本机 / DSH 沙箱下的执行方式」（沙箱内直接调 `apps/api/node_modules/.bin/jest.CMD --runInBand`，走 `pnpm --filter api test` 会 EPERM）。
 - 当前覆盖的关键路径：
   - `modules/ai-integration/extract-json.spec.ts`：`@skill/prompt-manager` 的 `extractJson` 各类解析/失败分支；
   - `modules/recommendation/recommendation.service.spec.ts`：推荐 TTL 判断与「过期先返回、后台刷新」逻辑；

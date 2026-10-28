@@ -250,6 +250,44 @@ describe('AnalysisService', () => {
       );
     });
 
+    it('EXPIRE 只接受精确匹配（「Java」不命中「JavaScript」）；ADD 父标题仍允许模糊', async () => {
+      suggestionRepo.find.mockResolvedValue([]);
+      const l1 = { id: 'l1', title: 'JavaScript 基础', level: NodeLevel.L1, sortOrder: 0 };
+      const l2 = {
+        id: 'l2a',
+        title: 'JavaScript 高级',
+        level: NodeLevel.L2,
+        parentId: 'l1',
+        sortOrder: 0,
+      };
+      skillTreeService.findById.mockResolvedValue({
+        id: 't-1',
+        name: '前端',
+        type: TreeType.ENTRY,
+        nodes: [l1, l2],
+      });
+      aiService.generateDiscoverNew.mockResolvedValue({
+        suggestions: [
+          // 模糊命中 l1：挂载位置允许兜底（采纳前有人工审）
+          { parentTitle: 'JavaScript', title: '新主题', description: 'd', reason: 'r' },
+        ],
+      });
+      aiService.generateCheckExpire.mockResolvedValue({
+        suggestions: [
+          // 只给子串：绝不能模糊命中后把节点状态改错
+          { nodeTitle: 'JavaScript', expireLevel: 2, reason: 'x' },
+        ],
+      });
+
+      const saved = await service.analyze('t-1', 'u1');
+
+      expect(saved).toHaveLength(1);
+      expect(saved[0]).toMatchObject({
+        action: SuggestionAction.ADD,
+        parentNodeId: 'l1',
+      });
+    });
+
     it('AI 全部失败时：job 标记 FAILED，返回空建议且不抛错', async () => {
       suggestionRepo.find.mockResolvedValue([]);
       skillTreeService.findById.mockResolvedValue({

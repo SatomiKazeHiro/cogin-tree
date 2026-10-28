@@ -13,12 +13,21 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.getOrThrow('JWT_SECRET'),
-        signOptions: {
-          expiresIn: configService.get('JWT_EXPIRES_IN') || '7d',
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.getOrThrow<string>('JWT_SECRET');
+        if (
+          configService.get('NODE_ENV') === 'production' &&
+          secret === 'change-me-in-production'
+        ) {
+          throw new Error('生产环境禁止使用默认 JWT_SECRET，请在 .env 中更换');
+        }
+        return {
+          secret,
+          signOptions: {
+            expiresIn: configService.get('JWT_EXPIRES_IN') || '7d',
+          },
+        };
+      },
       inject: [ConfigService],
     }),
   ],

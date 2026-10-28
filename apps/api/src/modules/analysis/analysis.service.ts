@@ -30,12 +30,6 @@ interface NodeListItem {
   parentTitle?: string;
 }
 
-const EXPIRE_LEVEL_TO_STATUS: Record<number, NodeStatus> = {
-  1: NodeStatus.OUTDATED_I,
-  2: NodeStatus.OUTDATED_II,
-  3: NodeStatus.OUTDATED_III,
-};
-
 @Injectable()
 export class AnalysisService {
   private readonly logger = new Logger(AnalysisService.name);
@@ -144,9 +138,10 @@ export class AnalysisService {
     }
 
     for (const s of expireResult?.suggestions || []) {
-      const targetNodeId = this.matchNodeId(nodes, s.nodeTitle);
+      // EXPIRE 会改节点状态，必须精确匹配——「Java」不该命中「JavaScript」
+      const targetNodeId = this.matchNodeId(nodes, s.nodeTitle, undefined, true);
       if (!targetNodeId) {
-        this.logger.warn(`过期建议的节点标题无法匹配，已丢弃: ${s.nodeTitle}`);
+        this.logger.warn(`过期建议的节点标题无法精确匹配，已丢弃: ${s.nodeTitle}`);
         continue;
       }
       suggestions.push({
@@ -198,11 +193,20 @@ export class AnalysisService {
     }
   }
 
-  /** 标题 → 节点 id：先精确匹配，再包含匹配；匹配不到返回 undefined */
-  private matchNodeId(nodes: TreeNode[], title: string, level?: NodeLevel): string | undefined {
+  /**
+   * 标题 → 节点 id：先精确匹配；`exactOnly=false` 时再退到包含匹配。
+   * EXPIRE 建议会改节点状态，必须精确匹配；ADD 的父节点只是挂载位置，允许模糊兜底。
+   */
+  private matchNodeId(
+    nodes: TreeNode[],
+    title: string,
+    level?: NodeLevel,
+    exactOnly = false,
+  ): string | undefined {
     const pool = level ? nodes.filter((n) => n.level === level) : nodes;
     const exact = pool.find((n) => n.title === title);
     if (exact) return exact.id;
+    if (exactOnly) return undefined;
     const fuzzy = pool.find((n) => n.title.includes(title) || title.includes(n.title));
     return fuzzy?.id;
   }

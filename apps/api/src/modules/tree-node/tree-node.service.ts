@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NodeLevel } from '@skill/shared';
@@ -53,7 +53,7 @@ export class TreeNodeService {
     const node = await this.treeAccess.assertNodeOwner(id, userId);
 
     if (node.level === NodeLevel.L3) {
-      throw new Error('L3 nodes cannot be expanded');
+      throw new BadRequestException('L3 nodes cannot be expanded');
     }
 
     const existingChildren = await this.nodeRepo.find({

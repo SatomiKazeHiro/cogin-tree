@@ -20,6 +20,7 @@ describe('RecommendationService.findForUser（TTL 与后台刷新）', () => {
   beforeEach(() => {
     repo = { find: jest.fn() };
     service = new RecommendationService(
+      { transaction: jest.fn(async (cb: (m: unknown) => unknown) => cb({})) } as never,
       repo as never,
       { getProfile: jest.fn() } as never,
       { findByUser: jest.fn() } as never,
@@ -82,5 +83,60 @@ describe('RecommendationService.findForUser（TTL 与后台刷新）', () => {
     expect(result).toBe(stale);
     // 让后台 promise 的 catch 跑完，确认无未处理异常
     await new Promise((resolve) => setImmediate(resolve));
+  });
+
+  describe('generateForUser（事务性刷新）', () => {
+    const buildService = (txRepo: unknown, transactionImpl?: jest.Mock) => {
+      const dataSource = {
+        transaction:
+          transactionImpl ??
+          jest.fn(async (cb: (m: unknown) => unknown) =>
+            cb({ getRepository: () => txRepo }),
+          ),
+      };
+      return new RecommendationService(
+        dataSource as never,
+        repo as never, // 旧推荐标题去重的读取仍走注入的 repo
+        { getProfile: jest.fn(async () => null) } as never,
+        { findByUser: jest.fn(async () => []) } as never,
+        { findById: jest.fn() } as never,
+        {
+          generateRecommendations: jest.fn(async () => ({
+            recommendations: [{ title: 'T', description: 'd', reason: 'r' }],
+          })),
+        } as never,
+      );
+    };
+
+    it('作废旧推荐与写入新推荐在同一事务里执行', async () => {
+      const txRepo = {
+        update: jest.fn(async () => undefined),
+        create: jest.fn((v) => v),
+        save: jest.fn(async (rows) => rows),
+      };
+      const svc = buildService(txRepo);
+      repo.find.mockResolvedValue([]); // oldRecs
+
+      const saved = await svc.generateForUser(userId);
+
+      expect(txRepo.update).toHaveBeenCalledWith(
+        { userId, isActive: true },
+        { isActive: false },
+      );
+      expect(txRepo.save).toHaveBeenCalledTimes(1);
+      expect(saved).toHaveLength(1);
+    });
+
+    it('事务失败向外抛错：作废操作随事务回滚，不会留下「零推荐」状态', async () => {
+      const transaction = jest.fn(async () => {
+        throw new Error('DB down');
+      });
+      const svc = buildService(null, transaction);
+      repo.find.mockResolvedValue([]);
+
+      await expect(svc.generateForUser(userId)).rejects.toThrow('DB down');
+      // 不存在事务外的单独作废写
+      expect(repo.find).toHaveBeenCalledTimes(1); // 仅 oldRecs 读取
+    });
   });
 });
