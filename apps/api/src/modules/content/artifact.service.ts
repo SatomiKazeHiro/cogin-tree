@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
   ArtifactKind,
   ArtifactStatusView,
@@ -28,6 +28,17 @@ export const CORE_TEXT_WAIT_MS = 60_000;
 
 /** 等待 coreText 时的轮询间隔（同时充当认领重试间隔） */
 export const CORE_TEXT_POLL_MS = 1_000;
+
+/**
+ * 认领在生成过程中被回收（陈旧阈值触发，由他人接管）。
+ * 抛出后内容写入随事务整体回滚，状态以新认领方为准。
+ */
+export class ClaimLostError extends Error {
+  constructor() {
+    super('生成认领已被回收，本次写入已回滚');
+    this.name = 'ClaimLostError';
+  }
+}
 
 /**
  * 产物编排：认领 → 前置依赖 → 调 AI → 单事务落库 → 标记状态。
@@ -145,8 +156,8 @@ export class ArtifactService {
     const { node, skillTreeName, l1Title } = await this.loadContext(nodeId, userId);
     const aiCtx = { userId, treeId: node.treeId, nodeId };
 
-    const claimed = await this.tasks.claim(nodeId, kind, opts.force);
-    if (!claimed) {
+    const claimToken = await this.tasks.claim(nodeId, kind, opts.force);
+    if (!claimToken) {
       // 已 READY（且未 force）或他人正在生成：幂等返回当前状态，绝不重复调 AI
       return this.getArtifacts(nodeId, userId);
     }
@@ -187,6 +198,8 @@ export class ArtifactService {
           } else {
             await repo.save(repo.create({ nodeId, coreText: result.coreText, version: 1 }));
           }
+          // markReady 与内容写入同事务：认领若已被回收，内容一并回滚
+          await this.assertClaimHeld(manager, nodeId, kind, claimToken);
         });
 
         // D13：I/II 是「内容需刷新」，重生成即已修复；III 是主题淘汰，刷新正文不解决问题
@@ -227,6 +240,7 @@ export class ArtifactService {
                 ),
               );
             }
+            await this.assertClaimHeld(manager, nodeId, kind, claimToken);
           });
         } else {
           const result = await this.ai.generateL3Exercises(
@@ -253,17 +267,40 @@ export class ArtifactService {
                 }),
               ),
             );
+            await this.assertClaimHeld(manager, nodeId, kind, claimToken);
           });
         }
       }
 
-      await this.tasks.markReady(nodeId, kind, {
-        promptVersion: PromptManager.versionOf(this.stageOf(kind)),
-      });
       return this.getArtifacts(nodeId, userId);
     } catch (err) {
-      await this.tasks.markFailed(nodeId, kind, err instanceof Error ? err.message : String(err));
+      if (err instanceof ClaimLostError) {
+        // 认领已被他人回收：新认领方会写完，幂等返回当前视图即可
+        return this.getArtifacts(nodeId, userId);
+      }
+      // markFailed 带 fencing token：认领已丢时不覆盖新认领方的状态
+      await this.tasks.markFailed(
+        nodeId,
+        kind,
+        claimToken,
+        err instanceof Error ? err.message : String(err),
+      );
       throw err;
+    }
+  }
+
+  /** 在同一事务里确认认领仍有效并标记 READY；已失效则抛 ClaimLostError 回滚 */
+  private async assertClaimHeld(
+    manager: EntityManager,
+    nodeId: string,
+    kind: ArtifactKind,
+    claimToken: string,
+  ): Promise<void> {
+    const ok = await this.tasks.markReady(manager, nodeId, kind, claimToken, {
+      promptVersion: PromptManager.versionOf(this.stageOf(kind)),
+    });
+    if (!ok) {
+      throw new ClaimLostError();
     }
   }
 

@@ -63,7 +63,7 @@ D:/Git/personal/cogni-tree
 | `portrait` | 肖像问卷题目与提交、AI 生成肖像摘要、原始答案落库（`PortraitAnswer`） |
 | `skill-tree` | 技能树（`SkillTree`）与 L1 节点（`TreeNode`）CRUD、自动生成 L1 |
 | `tree-node` | 节点展开（生成 L2）、子节点查询、节点编辑删除 |
-| `content` | L3 产物（`NodeContent` / `CodeExample` / `Exercise`）与生成任务（`GenerationTask`）——`ArtifactService` 负责编排（库级幂等认领 → 前置 coreText → 单事务落库 → 标记状态），`GenerationTaskService` 负责状态机，`ContentService` 只管读写与 legacy 兼容 |
+| `content` | L3 产物（`NodeContent` / `CodeExample` / `Exercise`）与生成任务（`GenerationTask`）——`ArtifactService` 负责编排（库级幂等认领 → 前置 coreText → 单事务落库，同事务内做 fencing 校验并标记 READY），`GenerationTaskService` 负责状态机（认领返回 fencing token，标记带 token 条件），`ContentService` 只管读写与 legacy 兼容 |
 | `learning-record` | 用户与学习方向/节点的关联记录（`LearningRecord`、`NodeLearningRecord`） |
 | `recommendation` | 推荐列表、按需刷新、从推荐创建技能树 |
 | `interview` | 面试 Q&A（`InterviewQuestion`）：题目挂在 L2 节点上（FK 级联删除），打开面试页时对无题节点后台懒生成（stage 6 按节点出题），`GET /skill-trees/:id/interview` 返回按节点分组的聚合结果 |
@@ -266,7 +266,7 @@ node_modules\.bin\tsc.CMD -p packages/ai-provider/tsconfig.json
 - **删除文件在当前沙箱下常被拒**（根目录有一条「禁止删除子项」规则），需要删临时文件时请手工删。
 - **`generation_tasks.attempts` 是「认领次数」**，不是 AI 调用次数；每次真实调用（含重试各一行）记在 `ai_generations`。
 
-基线（2026-09-25 实测，改动后请对照）：`apps/api` `tsc --noEmit` exit 0 · `jest --runInBand` **16 suites / 91 tests 全绿** · `apps/web` `vue-tsc --noEmit` exit 0 · 三个契约自检 `SELFCHECK OK` · `verify-schema.ts` `SCHEMA OK`（26 条断言：0 个 NO ACTION 外键、19 个非唯一索引）· `packages/prompt-manager/dist` 中 0 个 `*selfcheck*` 产物。
+基线（2026-10-25 实测，改动后请对照）：`apps/api` `tsc --noEmit` exit 0 · `jest --runInBand` **16 suites / 97 tests 全绿** · `apps/web` `vue-tsc --noEmit` exit 0 · 三个契约自检 `SELFCHECK OK` · `verify-schema.ts` `SCHEMA OK`（26 条断言：0 个 NO ACTION 外键、19 个非唯一索引）· `packages/prompt-manager/dist` 中 0 个 `*selfcheck*` 产物。
 
 ---
 
@@ -428,14 +428,14 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 
 ## 测试策略
 
-- 后端已有 Jest 单元测试（`apps/api/jest.config.js`，ts-jest，测试文件与源码同目录、以 `.spec.ts` 结尾）。当前 **16 suites / 91 tests 全绿**；命令见「本机 / DSH 沙箱下的执行方式」（沙箱内直接调 `apps/api/node_modules/.bin/jest.CMD --runInBand`，走 `pnpm --filter api test` 会 EPERM）。
+- 后端已有 Jest 单元测试（`apps/api/jest.config.js`，ts-jest，测试文件与源码同目录、以 `.spec.ts` 结尾）。当前 **16 suites / 97 tests 全绿**；命令见「本机 / DSH 沙箱下的执行方式」（沙箱内直接调 `apps/api/node_modules/.bin/jest.CMD --runInBand`，走 `pnpm --filter api test` 会 EPERM）。
 - 当前覆盖的关键路径：
   - `modules/ai-integration/extract-json.spec.ts`：`@skill/prompt-manager` 的 `extractJson` 各类解析/失败分支；
   - `modules/recommendation/recommendation.service.spec.ts`：推荐 TTL 判断与「过期先返回、后台刷新」逻辑；
   - `modules/auth/auth.service.spec.ts`：注册/登录（含密码哈希校验与异常分支）；
   - `modules/analysis/analysis.service.spec.ts`：建议采纳（创建节点/标记过期）、状态约束、标题匹配与 AI 失败降级；
-  - `modules/interview/interview.service.spec.ts`：按节点聚合分组、懒生成触发与并发去重、生成失败降级；
-  - `modules/content/generation-task.service.spec.ts`：产物状态机的原子认领 SQL（含 `on conflict` 条件、120s 陈旧阈值、**force 重新认领**）、`markReady`/`markFailed` 语义；
+  - `modules/interview/interview.service.spec.ts`：按节点聚合分组、懒生成触发与并发去重、**全局并发闸门（上限 3，超出排队）**、生成失败降级；
+  - `modules/content/generation-task.service.spec.ts`：产物状态机的原子认领 SQL（含 `on conflict` 条件、120s 陈旧阈值、**force 重新认领**、**fencing token：认领返回 `started_at::text`，markReady/markFailed 带 token 条件**）；
   - `modules/content/artifact.service.spec.ts`：产物编排（幂等认领、coreText 前置依赖、失败标记并抛出、无 task 行时按内容兜底派生状态、**重新生成：version 递增 / 依赖产物作废 / 过期标记清回 ACTIVE**）。
   - 其余 9 个 suite（按文件名）：`tree-access.service`、`skill-tree.service`、`tree-node.service`、`content.service`、`ai-integration.service`、`ai-generation.service`、`provider-contract`、`database.config`、`learning-record/dto.spec`。
 - 测试方式：直接 `new Service(...)` 传入 mock 依赖，不依赖 Nest 测试模块与真实数据库。
@@ -485,7 +485,7 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 5. **analysis 按树分析（偏离设计文档）**：文档设计为按节点分析（POST /nodes/:id/analyze），实际实现为按树一键分析（POST /skill-trees/:id/analysis）；`TreeNode.keyPoints` 字段未回填；建议无「重新生成」入口。
 6. **`OUTDATED_III` 仍无「删除节点」引导按钮**：过期节点已可通过「重新生成」修复（`OUTDATED_I`/`OUTDATED_II` 在重新生成成功后自动清回 `ACTIVE`），但 III 表示主题本身已淘汰，目前只在节点徽标与抽屉里文案提示「建议删除」，删除仍需走节点菜单。节点状态也**无法手动**改回（`UpdateNodeDto` 只允许 title/description）。
 7. **审计无法显式区分「同一节点的第几版正文」**：`l3-core-text` 的输入不含旧正文，因此两版正文的首次尝试 `request_hash` 相同；要按版本追溯需给 `ai_generations` 加列（如 `node_content_version`）。代码示例/练习题同样没有版本号（`attempts` 只记认领次数）。
-8. **interview 仍用内存 Map 去重**：产物生成已改为 `generation_tasks` 的库级原子认领（跨进程/重启安全），`interview.service.ts` 的并发去重仍是内存 `Map`，尚未迁移。
+8. **interview 懒生成与节点展开的并发去重仍是进程内内存 Map**：产物生成已改为 `generation_tasks` 的库级原子认领 + fencing token（跨进程/重启安全，陈旧写者的落库与标记会被条件更新挡下）；`interview.service.ts` 的去重 Map（另有全局并发闸门，上限 3）与 `tree-node.service.ts` 的 `expanding` Map 都只在单进程内有效，多实例下仍可能重复生成。
 
 ---
 

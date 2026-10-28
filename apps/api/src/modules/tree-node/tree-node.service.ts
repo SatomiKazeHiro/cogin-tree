@@ -9,6 +9,13 @@ import { TreeAccessService } from '../tree-access/tree-access.service';
 
 @Injectable()
 export class TreeNodeService {
+  /**
+   * 同一节点的并发展开去重：两个并发请求若都看到「无子节点」，会各调一次 AI、
+   * 各插一批重复的 L2。进程内用 in-flight Promise 合并（与 interview 懒生成同款模式）；
+   * 跨实例仍可能重复，属于与 interview 内存 Map 同级的已知限制。
+   */
+  private expanding = new Map<string, Promise<TreeNode[]>>();
+
   constructor(
     @InjectRepository(TreeNode)
     private nodeRepo: Repository<TreeNode>,
@@ -31,6 +38,18 @@ export class TreeNodeService {
   }
 
   async expand(id: string, userId: string): Promise<TreeNode[]> {
+    const inFlight = this.expanding.get(id);
+    if (inFlight) {
+      return inFlight;
+    }
+    const promise = this.doExpand(id, userId).finally(() => {
+      this.expanding.delete(id);
+    });
+    this.expanding.set(id, promise);
+    return promise;
+  }
+
+  private async doExpand(id: string, userId: string): Promise<TreeNode[]> {
     const node = await this.treeAccess.assertNodeOwner(id, userId);
 
     if (node.level === NodeLevel.L3) {

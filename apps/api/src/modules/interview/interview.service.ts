@@ -8,11 +8,21 @@ import { TreeNode } from '../skill-tree/entities/tree-node.entity';
 import { SkillTreeService } from '../skill-tree/skill-tree.service';
 import { AiIntegrationService } from '../ai-integration/ai-integration.service';
 
+/**
+ * 后台懒生成的全局并发上限。
+ * 首次打开面试页时，所有无题 L2 节点会同时触发生成；不设限会瞬时打满
+ * AI provider 的并发/速率配额（一棵 5×6 的树就是 ~30 个并发请求）。
+ */
+export const INTERVIEW_MAX_CONCURRENT_GENERATIONS = 3;
+
 @Injectable()
 export class InterviewService {
   private readonly logger = new Logger(InterviewService.name);
   /** 按节点并发生成去重 */
   private generating = new Map<string, Promise<void>>();
+  /** 全局并发闸门：进行中的生成数 + 排队等待的放行回调 */
+  private activeGenerations = 0;
+  private waitQueue: (() => void)[] = [];
 
   constructor(
     @InjectRepository(InterviewQuestion)
@@ -84,7 +94,7 @@ export class InterviewService {
     if (existing) {
       return;
     }
-    const promise = this.generateForNode(treeId, userId, treeName, node, l1Title)
+    const promise = this.runWithSlot(treeId, userId, treeName, node, l1Title)
       .catch((err) =>
         this.logger.warn(`面试题生成失败 (nodeId=${node.id}): ${err}`),
       )
@@ -92,6 +102,36 @@ export class InterviewService {
         this.generating.delete(node.id);
       });
     this.generating.set(node.id, promise);
+  }
+
+  /** 并发闸门：超限时排队，有生成结束后按 FIFO 放行 */
+  private async acquireSlot(): Promise<void> {
+    if (this.activeGenerations < INTERVIEW_MAX_CONCURRENT_GENERATIONS) {
+      this.activeGenerations += 1;
+      return;
+    }
+    await new Promise<void>((resolve) => this.waitQueue.push(resolve));
+    this.activeGenerations += 1;
+  }
+
+  private releaseSlot(): void {
+    this.activeGenerations -= 1;
+    this.waitQueue.shift()?.();
+  }
+
+  private async runWithSlot(
+    treeId: string,
+    userId: string,
+    treeName: string,
+    node: TreeNode,
+    l1Title: string,
+  ): Promise<void> {
+    await this.acquireSlot();
+    try {
+      await this.generateForNode(treeId, userId, treeName, node, l1Title);
+    } finally {
+      this.releaseSlot();
+    }
   }
 
   private async generateForNode(

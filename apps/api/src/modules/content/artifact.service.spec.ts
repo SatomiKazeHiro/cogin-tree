@@ -125,8 +125,8 @@ describe('ArtifactService', () => {
     };
 
     tasks = {
-      claim: jest.fn(async () => true),
-      markReady: jest.fn(async () => undefined),
+      claim: jest.fn(async () => 'tok-1'),
+      markReady: jest.fn(async () => true),
       markFailed: jest.fn(async () => undefined),
       findForNode: jest.fn(async () => []),
     };
@@ -171,15 +171,18 @@ describe('ArtifactService', () => {
     );
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(txContent.save).toHaveBeenCalled();
+    // markReady 在内容落库的同一事务里执行，并携带 fencing token
     expect(tasks.markReady).toHaveBeenCalledWith(
+      expect.anything(),
       'n1',
       ArtifactKind.L3_CORE_TEXT,
+      'tok-1',
       expect.objectContaining({ promptVersion: expect.any(String) }),
     );
   });
 
   it('认领失败（已 READY 或他人生成中）→ 完全不调 AI（幂等）', async () => {
-    tasks.claim.mockResolvedValue(false);
+    tasks.claim.mockResolvedValue(null);
 
     await service.generateArtifact('n1', 'u1', ArtifactKind.L3_CORE_TEXT);
 
@@ -224,6 +227,7 @@ describe('ArtifactService', () => {
     expect(tasks.markFailed).toHaveBeenCalledWith(
       'n1',
       ArtifactKind.L3_EXERCISES,
+      'tok-1',
       expect.stringContaining('AI down'),
     );
     // 失败发生在写库之前，因此没有产生任何写入
@@ -236,16 +240,16 @@ describe('ArtifactService', () => {
     // 「等一会儿」不是失败 —— 既不能丢掉用户意图，也不能写 FAILED 污染状态机。
     let coreClaimCalls = 0;
     tasks.claim.mockImplementation(async (_nodeId: string, kind: ArtifactKind) => {
-      if (kind !== ArtifactKind.L3_CORE_TEXT) return true;
+      if (kind !== ArtifactKind.L3_CORE_TEXT) return 'tok-other';
       coreClaimCalls += 1;
       if (coreClaimCalls === 1) {
         // 模拟并发请求稍后把 coreText 落库
         setTimeout(() => {
           db.content = { id: 'c1', nodeId: 'n1', coreText: '他人生成的核心内容', version: 1 };
         }, 5);
-        return false;
+        return null;
       }
-      return true;
+      return 'tok-core';
     });
 
     const view = await service.generateArtifact('n1', 'u1', ArtifactKind.L3_EXERCISES);
@@ -344,11 +348,55 @@ describe('ArtifactService', () => {
   });
 
   it('他人正在生成时 force 也认领不到 → 不重复调 AI（重新生成同样幂等）', async () => {
-    tasks.claim.mockResolvedValue(false);
+    tasks.claim.mockResolvedValue(null);
 
     await service.regenerateNode('n1', 'u1');
 
     expect(ai.generateL3CoreText).not.toHaveBeenCalled();
     expect(tasks.markReady).not.toHaveBeenCalled();
+  });
+
+  // ── fencing：认领被回收后的陈旧写者 ─────────────────────────────────
+
+  it('认领在生成中被回收（markReady 失配）→ 事务回滚、不标 FAILED、幂等返回当前视图', async () => {
+    // 场景：本次生成超过 120s 陈旧阈值，他人合法回收认领；
+    // 本次醒来后 markReady 的 token 条件匹配 0 行。
+    tasks.markReady.mockResolvedValue(false);
+    // 让假事务具备真实回滚语义：出错时恢复快照
+    dataSource.transaction.mockImplementationOnce(async (cb: (m: unknown) => Promise<unknown>) => {
+      const snapshot = { ...db };
+      try {
+        return await cb(manager);
+      } catch (err) {
+        db.content = snapshot.content;
+        db.codeExamples = snapshot.codeExamples;
+        db.exercises = snapshot.exercises;
+        throw err;
+      }
+    });
+
+    const view = await service.generateArtifact('n1', 'u1', ArtifactKind.L3_CORE_TEXT);
+
+    // 内容写入随事务回滚，不留半成品
+    expect(db.content).toBeNull();
+    // 不污染状态机：FAILED 是新认领方自己的事
+    expect(tasks.markFailed).not.toHaveBeenCalled();
+    // 调用方拿到幂等视图而非 500
+    expect(view.coreText.status).toBe(GenerationTaskStatus.PENDING);
+  });
+
+  it('AI 失败时 markFailed 仍携带 fencing token（认领已丢则不覆盖新认领方）', async () => {
+    ai.generateL3CoreText.mockRejectedValue(new Error('AI down'));
+
+    await expect(
+      service.generateArtifact('n1', 'u1', ArtifactKind.L3_CORE_TEXT),
+    ).rejects.toThrow('AI down');
+
+    expect(tasks.markFailed).toHaveBeenCalledWith(
+      'n1',
+      ArtifactKind.L3_CORE_TEXT,
+      'tok-1',
+      expect.stringContaining('AI down'),
+    );
   });
 });

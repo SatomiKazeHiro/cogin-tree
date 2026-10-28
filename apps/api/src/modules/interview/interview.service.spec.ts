@@ -1,5 +1,5 @@
 import { NodeLevel, NodeStatus } from '@skill/shared';
-import { InterviewService } from './interview.service';
+import { InterviewService, INTERVIEW_MAX_CONCURRENT_GENERATIONS } from './interview.service';
 import { TreeNode } from '../skill-tree/entities/tree-node.entity';
 
 describe('InterviewService.findForTree（聚合 + 懒生成）', () => {
@@ -130,5 +130,42 @@ describe('InterviewService.findForTree（聚合 + 懒生成）', () => {
     // 失败后 generating 已清理，再次请求会重新触发
     await service.findForTree('t-1', 'u1');
     expect(aiService.generateInterviewQA).toHaveBeenCalledTimes(4);
+  });
+
+  it('懒生成有全局并发上限：大量无题节点不会瞬时打满 AI', async () => {
+    // 6 个无题 L2 节点（超过上限 3），首次打开面试页全部触发生成
+    const manyL2 = Array.from({ length: 6 }, (_, i) => ({
+      id: `n-${i}`,
+      title: `主题${i}`,
+      level: NodeLevel.L2,
+      parentId: 'l1',
+      sortOrder: i,
+      status: NodeStatus.ACTIVE,
+    })) as TreeNode[];
+    skillTreeService.findById.mockResolvedValue({
+      id: 't-1',
+      name: '前端面试',
+      nodes: [l1, ...manyL2],
+    });
+    questionRepo.find.mockResolvedValue([]);
+
+    let active = 0;
+    let maxActive = 0;
+    aiService.generateInterviewQA.mockImplementation(async () => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((r) => setTimeout(r, 10));
+      active -= 1;
+      return { questions: [] };
+    });
+
+    await service.findForTree('t-1', 'u1');
+    // 等所有排队生成完成
+    await new Promise((r) => setTimeout(r, 200));
+
+    expect(aiService.generateInterviewQA).toHaveBeenCalledTimes(6);
+    expect(maxActive).toBeLessThanOrEqual(INTERVIEW_MAX_CONCURRENT_GENERATIONS);
+    // 闸门是限流不是串行化：确实有并发
+    expect(maxActive).toBeGreaterThan(1);
   });
 });
