@@ -486,6 +486,8 @@ Tailwind `@theme` 中同时注册了语义类名（如 `bg-canvas`、`text-ink`�
 6. **`OUTDATED_III` 仍无「删除节点」引导按钮**：过期节点已可通过「重新生成」修复（`OUTDATED_I`/`OUTDATED_II` 在重新生成成功后自动清回 `ACTIVE`），但 III 表示主题本身已淘汰，目前只在节点徽标与抽屉里文案提示「建议删除」，删除仍需走节点菜单。节点状态也**无法手动**改回（`UpdateNodeDto` 只允许 title/description）。
 7. **审计无法显式区分「同一节点的第几版正文」**：`l3-core-text` 的输入不含旧正文，因此两版正文的首次尝试 `request_hash` 相同；要按版本追溯需给 `ai_generations` 加列（如 `node_content_version`）。代码示例/练习题同样没有版本号（`attempts` 只记认领次数）。
 8. **interview 懒生成与节点展开的并发去重仍是进程内内存 Map**：产物生成已改为 `generation_tasks` 的库级原子认领 + fencing token（跨进程/重启安全，陈旧写者的落库与标记会被条件更新挡下）；`interview.service.ts` 的去重 Map（另有全局并发闸门，上限 3）与 `tree-node.service.ts` 的 `expanding` Map 都只在单进程内有效，多实例下仍可能重复生成。
+9. **登录/注册无速率限制（上线前必做）**：`/auth/login`、`/auth/register` 可被无限尝试（撞库/暴力破解）。建议引入 `@nestjs/throttler`（全局 Guard + auth 端点收紧），或至少按 IP+email 做内存级限流；多实例部署时需落到 Redis 等共享存储。
+10. **`skill-token` cookie 非 httpOnly（上线前必做）**：token 由前端 JS 经 `useCookie` 写入（`useAuthStore.ts`），XSS 可直接窃取。正确做法是登录/注册响应改为后端 `Set-Cookie`（`HttpOnly; Secure; SameSite=Lax`）下发，前端不再经手 token；需同步调整 `useAuthStore`、`useApi` 的鉴权头逻辑与登出端点。
 
 ---
 
